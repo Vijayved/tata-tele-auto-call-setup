@@ -73,6 +73,13 @@ app.post("/wati-webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // ── Step 2.5: Deduplicate by message ID (WATI retries same webhook) ──
+    const messageId = payload?.id || payload?.whatsappMessageId || "";
+    if (messageId && webhookHandler.isProcessedMessage(messageId)) {
+      logger.info(`Duplicate message ID ignored: ${messageId}`);
+      return res.status(200).json({ status: "duplicate_message_ignored" });
+    }
+
     // ── Step 3: Extract patient phone number ──
     const patientNumber = webhookHandler.extractPatientNumber(payload);
     if (!patientNumber) {
