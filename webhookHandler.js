@@ -3,7 +3,11 @@ const logger = require("./logger");
 
 class WebhookHandler {
   constructor() {
-    this.triggerText = (process.env.TRIGGER_BUTTON_TEXT || "Book Test").toLowerCase();
+    // Support multiple trigger buttons (comma-separated in env)
+    this.triggerTexts = (process.env.TRIGGER_BUTTON_TEXT || "Book Test")
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
     this.webhookSecret = process.env.WATI_WEBHOOK_SECRET || "";
     this.debounceSeconds = parseInt(process.env.DEBOUNCE_SECONDS || "60", 10);
 
@@ -21,7 +25,7 @@ class WebhookHandler {
     setInterval(() => this.cleanupDebounce(), 5 * 60 * 1000);
 
     logger.info("WebhookHandler initialized", {
-      triggerText: this.triggerText,
+      triggerTexts: this.triggerTexts,
       debounceSeconds: this.debounceSeconds,
       businessHours: `${this.businessHoursStart}:00 - ${this.businessHoursEnd}:00 IST`,
     });
@@ -75,7 +79,8 @@ class WebhookHandler {
   }
 
   /**
-   * Check if the webhook payload contains a "Book Test" button click
+   * Check if the webhook payload contains any trigger button click
+   * Supports: "BOOK THIS PACKAGE", "CALL ME FOR ASSISTANCE", "DETAILS OF PACKAGE"
    */
   isBookTestClick(payload) {
     // Check multiple possible fields where button text might appear
@@ -91,9 +96,12 @@ class WebhookHandler {
     ].filter(Boolean);
 
     for (const text of possibleTexts) {
-      if (String(text).toLowerCase().includes(this.triggerText)) {
-        logger.info(`Button text matched: "${text}"`);
-        return true;
+      const lowerText = String(text).toLowerCase();
+      for (const trigger of this.triggerTexts) {
+        if (lowerText.includes(trigger)) {
+          logger.info(`Button text matched: "${text}" (trigger: "${trigger}")`);
+          return true;
+        }
       }
     }
 
