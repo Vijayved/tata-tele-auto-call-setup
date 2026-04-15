@@ -21,6 +21,10 @@ class WebhookHandler {
     // In-memory debounce map: phoneNumber -> timestamp
     this.recentClicks = new Map();
 
+    // Processed message IDs to prevent WATI retry duplicates
+    this.processedMessages = new Set();
+    this.maxProcessedMessages = 500;
+
     // Cleanup old entries every 5 minutes
     setInterval(() => this.cleanupDebounce(), 5 * 60 * 1000);
 
@@ -166,6 +170,25 @@ class WebhookHandler {
     if (cleaned > 0) {
       logger.info(`Debounce cleanup: removed ${cleaned} entries`);
     }
+  }
+
+  /**
+   * Check if this message was already processed (prevents WATI retry duplicates)
+   */
+  isProcessedMessage(messageId) {
+    if (this.processedMessages.has(messageId)) {
+      return true;
+    }
+
+    this.processedMessages.add(messageId);
+
+    // Trim old entries to prevent memory bloat
+    if (this.processedMessages.size > this.maxProcessedMessages) {
+      const first = this.processedMessages.values().next().value;
+      this.processedMessages.delete(first);
+    }
+
+    return false;
   }
 
   /**
