@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: wati-tatatele-bridge
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: TATA_API_KEY
+        sync: false
+      - key: TATA_API_URL
+        value: https://api-smartflo.tatateleservices.com/v1/click_to_call
+      - key: CALLER_ID
+        sync: false
+      - key: AGENT_NUMBERS
+        sync: false
+      - key: TRIGGER_BUTTON_TEXT
+        value: Book Test
+      - key: BUSINESS_HOURS_START
+        value: 9
+      - key: BUSINESS_HOURS_END
+        value: 19
+      - key: BUSINESS_DAYS
+        value: 1,2,3,4,5,6
+      - key: DEBOUNCE_SECONDS
+        value: 60
+      - key: MAX_RETRIES
+        value: 2
+      - key: RETRY_DELAY_MS
+        value: 5000
