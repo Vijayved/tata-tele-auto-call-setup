@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const path = require("path");
 const logger = require("./logger");
 const WebhookHandler = require("./webhookHandler");
 const AgentManager = require("./agentManager");
@@ -31,6 +32,17 @@ app.use((req, res, next) => {
     userAgent: req.get("user-agent"),
   });
   next();
+});
+
+// ═══════════════════════════════════════════
+// ROUTE 0: Dashboard (UI)
+// ═══════════════════════════════════════════
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
+
+app.get("/dashboard", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
 });
 
 // ═══════════════════════════════════════════
@@ -73,6 +85,15 @@ app.post("/wati-webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // Capture the button text that was clicked
+    const buttonText =
+      payload?.text ||
+      payload?.buttonReply?.text ||
+      payload?.button?.text ||
+      payload?.listReply?.title ||
+      "Unknown";
+    const contactName = payload?.senderName || payload?.contactName || "";
+
     // ── Step 2.5: Deduplicate by message ID (WATI retries same webhook) ──
     const messageId = payload?.id || payload?.whatsappMessageId || "";
     if (messageId && webhookHandler.isProcessedMessage(messageId)) {
@@ -112,6 +133,8 @@ app.post("/wati-webhook", async (req, res) => {
       callStore.addLog({
         patient_number: patientNumber,
         agent_number: null,
+        button_clicked: buttonText,
+        contact_name: contactName,
         status: "SKIPPED",
         reason: "Outside business hours",
       });
@@ -135,6 +158,8 @@ app.post("/wati-webhook", async (req, res) => {
     const logEntry = callStore.addLog({
       patient_number: patientNumber,
       agent_number: agentNumber,
+      button_clicked: buttonText,
+      contact_name: contactName,
       status: result.success ? "SUCCESS" : "FAILED",
       attempts: result.attempt || 0,
       tata_response: result.data || result.error,
@@ -211,7 +236,7 @@ app.get("/logs", (req, res) => {
 });
 
 // ═══════════════════════════════════════════
-// ROUTE 5: Manual Call Trigger (for testing)
+// ROUTE 5: Manual Call Trigger (for testing & redial from dashboard)
 // ═══════════════════════════════════════════
 app.post("/test-call", async (req, res) => {
   const { patient_number } = req.body;
@@ -226,8 +251,10 @@ app.post("/test-call", async (req, res) => {
   callStore.addLog({
     patient_number,
     agent_number: agentNumber,
+    button_clicked: "Manual Redial",
+    contact_name: req.body.contact_name || "",
     status: result.success ? "SUCCESS" : "FAILED",
-    source: "manual_test",
+    source: "manual_redial",
     tata_response: result.data || result.error,
   });
 
