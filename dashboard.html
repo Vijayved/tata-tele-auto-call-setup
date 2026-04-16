@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call Dashboard | WATI + Tata Tele</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+  .header .subtitle { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  .live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #065f46;
+    color: #d1fae5;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #10b981;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .stat-label {
+    color: #94a3b8;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .stat-card.success .stat-value { color: #10b981; }
+  .stat-card.failed .stat-value { color: #ef4444; }
+  .stat-card.today .stat-value { color: #3b82f6; }
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #2563eb; }
+  .btn.secondary { background: #475569; }
+  .btn.secondary:hover { background: #334155; }
+  .search-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 200px;
+  }
+  .search-box:focus { outline: none; border-color: #3b82f6; }
+  .table-wrap {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead {
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+  }
+  th {
+    text-align: left;
+    padding: 14px 16px;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #334155;
+    font-size: 14px;
+  }
+  tr:hover td { background: #273449; }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge.success { background: #065f46; color: #d1fae5; }
+  .badge.failed { background: #7f1d1d; color: #fee2e2; }
+  .badge.skipped { background: #78350f; color: #fed7aa; }
+  .badge.button {
+    background: #1e3a8a;
+    color: #bfdbfe;
+    text-transform: none;
+    font-weight: 500;
+  }
+  .phone {
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 13px;
+    color: #cbd5e1;
+  }
+  .redial-btn {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  .redial-btn:hover { background: #059669; }
+  .redial-btn:disabled {
+    background: #475569;
+    cursor: not-allowed;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+  }
+  .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+  .time { color: #94a3b8; font-size: 12px; white-space: nowrap; }
+  .name { color: #e2e8f0; font-weight: 500; }
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 16px 20px;
+    color: #e2e8f0;
+    font-size: 14px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    transform: translateX(400px);
+    transition: transform 0.3s;
+    z-index: 1000;
+  }
+  .notification.show { transform: translateX(0); }
+  .notification.success { border-color: #10b981; }
+  .notification.error { border-color: #ef4444; }
+  .new-row {
+    animation: flash 2s ease-out;
+  }
+  @keyframes flash {
+    0% { background: rgba(59, 130, 246, 0.3); }
+    100% { background: transparent; }
+  }
+  @media (max-width: 768px) {
+    .hide-mobile { display: none; }
+    th, td { padding: 10px 8px; font-size: 13px; }
+    .stat-value { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>📞 Call Dashboard</h1>
+      <div class="subtitle">WATI WhatsApp → Tata Tele Smartflo — Live Activity</div>
+    </div>
+    <div class="live-indicator">
+      <span class="live-dot"></span>
+      <span id="live-status">Live</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total Calls</div>
+      <div class="stat-value" id="stat-total">0</div>
+    </div>
+    <div class="stat-card today">
+      <div class="stat-label">Today</div>
+      <div class="stat-value" id="stat-today">0</div>
+    </div>
+    <div class="stat-card success">
+      <div class="stat-label">Success</div>
+      <div class="stat-value" id="stat-success">0</div>
+    </div>
+    <div class="stat-card failed">
+      <div class="stat-label">Failed</div>
+      <div class="stat-value" id="stat-failed">0</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <input type="text" class="search-box" id="search" placeholder="🔍 Search by phone number, name, or button..." />
+    <button class="btn secondary" onclick="refreshNow()">↻ Refresh</button>
+    <button class="btn secondary" onclick="toggleAutoRefresh()" id="autorefresh-btn">⏸ Pause</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Customer</th>
+          <th>Phone</th>
+          <th>Button Clicked</th>
+          <th>Status</th>
+          <th class="hide-mobile">Agent</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="logs-body">
+        <tr>
+          <td colspan="7" class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div>No calls yet. Waiting for WhatsApp button clicks...</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script>
+  let logs = [];
+  let knownIds = new Set();
+  let autoRefresh = true;
+  let refreshInterval;
+  let searchTerm = "";
+
+  function formatTime(iso) {
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+    if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) +
+           " " + d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  }
+
+  function formatPhone(p) {
+    if (!p) return "-";
+    const s = String(p);
+    if (s.startsWith("91") && s.length === 12) {
+      return "+91 " + s.substring(2, 7) + " " + s.substring(7);
+    }
+    return s;
+  }
+
+  function badgeForStatus(s) {
+    const classes = { SUCCESS: "success", FAILED: "failed", SKIPPED: "skipped" };
+    return '<span class="badge ' + (classes[s] || "") + '">' + s + '</span>';
+  }
+
+  function renderLogs() {
+    const tbody = document.getElementById("logs-body");
+    const filtered = logs.filter(log => {
+      if (!searchTerm) return true;
+      const q = searchTerm.toLowerCase();
+      return (log.patient_number || "").toLowerCase().includes(q) ||
+             (log.contact_name || "").toLowerCase().includes(q) ||
+             (log.button_clicked || "").toLowerCase().includes(q);
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML =
+        '<tr><td colspan="7" class="empty-state">' +
+        '<div class="empty-state-icon">📭</div>' +
+        '<div>' + (searchTerm ? "No results found" : "No calls yet. Waiting for WhatsApp button clicks...") + '</div>' +
+        '</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(log => {
+      const isNew = !knownIds.has(log.id);
+      knownIds.add(log.id);
+      const canRedial = log.patient_number && log.status !== "SKIPPED";
+      return '<tr' + (isNew ? ' class="new-row"' : '') + '>' +
+        '<td class="time">' + formatTime(log.created_at) + '</td>' +
+        '<td class="name">' + (log.contact_name || '-') + '</td>' +
+        '<td class="phone">' + formatPhone(log.patient_number) + '</td>' +
+        '<td><span class="badge button">' + (log.button_clicked || '-') + '</span></td>' +
+        '<td>' + badgeForStatus(log.status) + '</td>' +
+        '<td class="hide-mobile phone">' + formatPhone(log.agent_number) + '</td>' +
+        '<td>' +
+          (canRedial
+            ? '<button class="redial-btn" onclick="redial(\'' + log.patient_number + '\', this)">📞 Redial</button>'
+            : '-') +
+        '</td>' +
+        '</tr>';
+    }).join("");
+  }
+
+  async function fetchLogs() {
+    try {
+      const [logsRes, statsRes] = await Promise.all([
+        fetch("/logs?limit=100"),
+        fetch("/stats")
+      ]);
+      const newLogs = await logsRes.json();
+      const stats = await statsRes.json();
+
+      // Check for new calls
+      const prevCount = logs.length;
+      logs = newLogs;
+
+      if (prevCount > 0 && newLogs.length > prevCount) {
+        const newCount = newLogs.length - prevCount;
+        showNotification("📞 " + newCount + " new call" + (newCount > 1 ? "s" : "") + " received!", "success");
+      }
+
+      document.getElementById("stat-total").textContent = stats.total || 0;
+      document.getElementById("stat-today").textContent = stats.today || 0;
+      document.getElementById("stat-success").textContent = stats.success || 0;
+      document.getElementById("stat-failed").textContent = stats.failed || 0;
+
+      renderLogs();
+      document.getElementById("live-status").textContent = "Live • " + new Date().toLocaleTimeString("en-IN", { hour12: true });
+    } catch (e) {
+      console.error("Failed to fetch:", e);
+      document.getElementById("live-status").textContent = "Offline";
+    }
+  }
+
+  async function redial(phone, btn) {
+    if (!confirm("Redial " + formatPhone(phone) + "?")) return;
+    btn.disabled = true;
+    btn.textContent = "Calling...";
+    try {
+      const res = await fetch("/test-call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patient_number: phone })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification("✓ Call initiated to " + formatPhone(phone), "success");
+        setTimeout(fetchLogs, 1000);
+      } else {
+        showNotification("✗ Call failed: " + (data.error?.message || "Unknown error"), "error");
+      }
+    } catch (e) {
+      showNotification("✗ Network error", "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "📞 Redial";
+    }
+  }
+
+  function showNotification(msg, type) {
+    const n = document.getElementById("notification");
+    n.textContent = msg;
+    n.className = "notification " + type + " show";
+    setTimeout(() => { n.classList.remove("show"); }, 3500);
+  }
+
+  function refreshNow() {
+    fetchLogs();
+    showNotification("↻ Refreshed", "success");
+  }
+
+  function toggleAutoRefresh() {
+    autoRefresh = !autoRefresh;
+    const btn = document.getElementById("autorefresh-btn");
+    if (autoRefresh) {
+      btn.textContent = "⏸ Pause";
+      refreshInterval = setInterval(fetchLogs, 5000);
+    } else {
+      btn.textContent = "▶ Resume";
+      clearInterval(refreshInterval);
+    }
+  }
+
+  document.getElementById("search").addEventListener("input", (e) => {
+    searchTerm = e.target.value;
+    renderLogs();
+  });
+
+  // Initial load
+  fetchLogs();
+  refreshInterval = setInterval(fetchLogs, 5000);
+</script>
+</body>
+</html>
