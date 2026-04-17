@@ -4,214 +4,77 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Call Dashboard | WATI + Tata Tele</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #0f172a;
-    color: #e2e8f0;
-    min-height: 100vh;
-    padding: 20px;
-  }
-  .container { max-width: 1400px; margin: 0 auto; }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .header h1 {
-    font-size: 24px;
-    font-weight: 600;
-    color: #f1f5f9;
-  }
-  .header .subtitle { color: #94a3b8; font-size: 13px; margin-top: 4px; }
-  .live-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #065f46;
-    color: #d1fae5;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-  .live-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #10b981;
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-  .stat-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 20px;
-  }
-  .stat-label {
-    color: #94a3b8;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-  }
-  .stat-value {
-    font-size: 32px;
-    font-weight: 700;
-    color: #f1f5f9;
-  }
-  .stat-card.success .stat-value { color: #10b981; }
-  .stat-card.failed .stat-value { color: #ef4444; }
-  .stat-card.today .stat-value { color: #3b82f6; }
-  .controls {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-  .btn {
-    background: #3b82f6;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-  .btn:hover { background: #2563eb; }
-  .btn.secondary { background: #475569; }
-  .btn.secondary:hover { background: #334155; }
-  .search-box {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #e2e8f0;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    flex: 1;
-    min-width: 200px;
-  }
-  .search-box:focus { outline: none; border-color: #3b82f6; }
-  .table-wrap {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    overflow: hidden;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  thead {
-    background: #0f172a;
-    border-bottom: 1px solid #334155;
-  }
-  th {
-    text-align: left;
-    padding: 14px 16px;
-    color: #94a3b8;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  td {
-    padding: 14px 16px;
-    border-bottom: 1px solid #334155;
-    font-size: 14px;
-  }
-  tr:hover td { background: #273449; }
-  .badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-  .badge.success { background: #065f46; color: #d1fae5; }
-  .badge.failed { background: #7f1d1d; color: #fee2e2; }
-  .badge.skipped { background: #78350f; color: #fed7aa; }
-  .badge.button {
-    background: #1e3a8a;
-    color: #bfdbfe;
-    text-transform: none;
-    font-weight: 500;
-  }
-  .phone {
-    font-family: "SF Mono", Monaco, Consolas, monospace;
-    font-size: 13px;
-    color: #cbd5e1;
-  }
-  .redial-btn {
-    background: #10b981;
-    color: white;
-    border: none;
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s;
-  }
-  .redial-btn:hover { background: #059669; }
-  .redial-btn:disabled {
-    background: #475569;
-    cursor: not-allowed;
-  }
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: #94a3b8;
-  }
-  .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-  .time { color: #94a3b8; font-size: 12px; white-space: nowrap; }
-  .name { color: #e2e8f0; font-weight: 500; }
-  .notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 16px 20px;
-    color: #e2e8f0;
-    font-size: 14px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    transform: translateX(400px);
-    transition: transform 0.3s;
-    z-index: 1000;
-  }
-  .notification.show { transform: translateX(0); }
-  .notification.success { border-color: #10b981; }
-  .notification.error { border-color: #ef4444; }
-  .new-row {
-    animation: flash 2s ease-out;
-  }
-  @keyframes flash {
-    0% { background: rgba(59, 130, 246, 0.3); }
-    100% { background: transparent; }
-  }
-  @media (max-width: 768px) {
-    .hide-mobile { display: none; }
-    th, td { padding: 10px 8px; font-size: 13px; }
-    .stat-value { font-size: 24px; }
-  }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8f9fa;color:#1a1a2e;min-height:100vh}
+.container{max-width:1500px;margin:0 auto;padding:16px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;background:#fff;padding:16px 20px;border-radius:10px;border:1px solid #e2e8f0}
+.header h1{font-size:20px;font-weight:600;color:#1a1a2e}
+.header .sub{color:#64748b;font-size:12px;margin-top:2px}
+.live{display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;color:#059669;padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#10b981;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.stat{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}
+.stat-label{color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-weight:600}
+.stat-val{font-size:22px;font-weight:700}
+.stat.s .stat-val{color:#059669}.stat.f .stat-val{color:#dc2626}.stat.t .stat-val{color:#2563eb}.stat.w .stat-val{color:#d97706}
+
+.agent-stats{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:12px}
+.agent-stats h3{font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:10px}
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.agent-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px}
+.agent-name{font-weight:600;font-size:13px;color:#1e293b;margin-bottom:6px}
+.agent-metrics{display:flex;gap:8px;flex-wrap:wrap}
+.agent-m{font-size:11px;padding:3px 8px;border-radius:4px;font-weight:500}
+.agent-m.calls{background:#dbeafe;color:#1d4ed8}
+.agent-m.conv{background:#dcfce7;color:#166534}
+.agent-m.notc{background:#fee2e2;color:#991b1b}
+.agent-m.wait{background:#fef3c7;color:#92400e}
+
+.controls{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.search{background:#fff;border:1px solid #d1d5db;color:#1a1a2e;padding:8px 12px;border-radius:6px;font-size:13px;flex:1;min-width:180px}
+.search:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+.btn{padding:8px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #d1d5db;background:#fff;color:#374151;transition:all .15s}
+.btn:hover{background:#f1f5f9}
+.btn.primary{background:#2563eb;color:#fff;border-color:#2563eb}
+.btn.primary:hover{background:#1d4ed8}
+.btn.green{background:#059669;color:#fff;border-color:#059669}
+.btn.green:hover{background:#047857}
+
+.table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:1100px}
+thead{background:#f8fafc;border-bottom:2px solid #e2e8f0}
+th{text-align:left;padding:10px 10px;color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle}
+tr:hover td{background:#f8fafc}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;white-space:nowrap}
+.badge.success{background:#dcfce7;color:#166534}
+.badge.failed{background:#fee2e2;color:#991b1b}
+.badge.skipped{background:#fef3c7;color:#92400e}
+.badge.btn-type{background:#dbeafe;color:#1d4ed8;text-transform:none;font-weight:500}
+.badge.calling{background:#e0e7ff;color:#3730a3}
+.badge.calldone{background:#dcfce7;color:#166534}
+.badge.notcall{background:#f3f4f6;color:#6b7280}
+.phone{font-family:"SF Mono",Monaco,Consolas,monospace;font-size:12px;color:#475569}
+.name{font-weight:500;color:#1e293b;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.time{color:#94a3b8;font-size:11px;white-space:nowrap}
+select{padding:4px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;background:#fff;color:#1e293b;cursor:pointer}
+select:focus{outline:none;border-color:#3b82f6}
+input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:#2563eb}
+.empty{text-align:center;padding:40px 20px;color:#94a3b8}
+.notify{position:fixed;top:16px;right:16px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;color:#1e293b;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.1);transform:translateX(400px);transition:transform .3s;z-index:1000}
+.notify.show{transform:translateX(0)}
+.notify.ok{border-left:3px solid #10b981}
+.notify.err{border-left:3px solid #ef4444}
+.new-row{animation:flash 2s ease-out}
+@keyframes flash{0%{background:#dbeafe}100%{background:transparent}}
+.redial-btn{background:#059669;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap}
+.redial-btn:hover{background:#047857}
+.redial-btn:disabled{background:#d1d5db;cursor:not-allowed}
+.status-row{display:flex;gap:4px;align-items:center}
 </style>
 </head>
 <body>
@@ -219,225 +82,273 @@
   <div class="header">
     <div>
       <h1>📞 Call Dashboard</h1>
-      <div class="subtitle">WATI WhatsApp → Tata Tele Smartflo — Live Activity</div>
+      <div class="sub">WATI WhatsApp → Tata Tele Smartflo</div>
     </div>
-    <div class="live-indicator">
-      <span class="live-dot"></span>
-      <span id="live-status">Live</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="live"><span class="live-dot"></span><span id="live-s">Live</span></div>
     </div>
   </div>
 
-  <div class="stats">
-    <div class="stat-card">
-      <div class="stat-label">Total Calls</div>
-      <div class="stat-value" id="stat-total">0</div>
-    </div>
-    <div class="stat-card today">
-      <div class="stat-label">Today</div>
-      <div class="stat-value" id="stat-today">0</div>
-    </div>
-    <div class="stat-card success">
-      <div class="stat-label">Success</div>
-      <div class="stat-value" id="stat-success">0</div>
-    </div>
-    <div class="stat-card failed">
-      <div class="stat-label">Failed</div>
-      <div class="stat-value" id="stat-failed">0</div>
-    </div>
+  <div class="stats" id="stats-area">
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-val" id="s-total">0</div></div>
+    <div class="stat t"><div class="stat-label">Today</div><div class="stat-val" id="s-today">0</div></div>
+    <div class="stat s"><div class="stat-label">Call Done</div><div class="stat-val" id="s-calldone">0</div></div>
+    <div class="stat" style=""><div class="stat-label">Calling</div><div class="stat-val" id="s-calling" style="color:#4f46e5">0</div></div>
+    <div class="stat f"><div class="stat-label">Not Call</div><div class="stat-val" id="s-notcall">0</div></div>
+    <div class="stat s"><div class="stat-label">Converted</div><div class="stat-val" id="s-conv">0</div></div>
+    <div class="stat w"><div class="stat-label">Waiting</div><div class="stat-val" id="s-wait">0</div></div>
+    <div class="stat f"><div class="stat-label">Not Convert</div><div class="stat-val" id="s-notconv">0</div></div>
+  </div>
+
+  <div class="agent-stats">
+    <h3>📊 Agent Performance</h3>
+    <div class="agent-grid" id="agent-perf"></div>
   </div>
 
   <div class="controls">
-    <input type="text" class="search-box" id="search" placeholder="🔍 Search by phone number, name, or button..." />
-    <button class="btn secondary" onclick="refreshNow()">↻ Refresh</button>
-    <button class="btn secondary" onclick="toggleAutoRefresh()" id="autorefresh-btn">⏸ Pause</button>
+    <input type="text" class="search" id="search" placeholder="🔍 Search phone, name, button..." />
+    <select id="filter-agent" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Agents</option><option value="Khyati">Khyati</option><option value="Mittal">Mittal</option><option value="Aditi">Aditi</option><option value="Jay">Jay</option><option value="Apoorv">Apoorv</option></select>
+    <select id="filter-status" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Status</option><option value="Calling">Calling</option><option value="Call Done">Call Done</option><option value="Not Call">Not Call</option></select>
+    <select id="filter-convert" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Convert</option><option value="Convert Done">Convert Done</option><option value="Waiting">Waiting</option><option value="Not Convert">Not Convert</option></select>
+    <button class="btn" onclick="refreshNow()">↻ Refresh</button>
+    <button class="btn green" onclick="downloadExcel()">📥 Excel Download</button>
   </div>
 
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
+          <th style="width:30px">✓</th>
           <th>Time</th>
           <th>Customer</th>
           <th>Phone</th>
-          <th>Button Clicked</th>
-          <th>Status</th>
-          <th class="hide-mobile">Agent</th>
+          <th>Button</th>
+          <th>Call Status</th>
+          <th>Agent</th>
+          <th>Convert</th>
           <th>Action</th>
         </tr>
       </thead>
-      <tbody id="logs-body">
-        <tr>
-          <td colspan="7" class="empty-state">
-            <div class="empty-state-icon">📭</div>
-            <div>No calls yet. Waiting for WhatsApp button clicks...</div>
-          </td>
-        </tr>
-      </tbody>
+      <tbody id="tbody"></tbody>
     </table>
   </div>
 </div>
 
-<div class="notification" id="notification"></div>
+<div class="notify" id="notify"></div>
 
 <script>
-  let logs = [];
-  let knownIds = new Set();
-  let autoRefresh = true;
-  let refreshInterval;
-  let searchTerm = "";
+const AGENTS=["Khyati","Mittal","Aditi","Jay","Apoorv"];
+let logs=[];
+let localData={};
+let knownIds=new Set();
+let refreshTimer;
 
-  function formatTime(iso) {
-    const d = new Date(iso);
-    const now = new Date();
-    const diff = (now - d) / 1000;
-    if (diff < 60) return "just now";
-    if (diff < 3600) return Math.floor(diff / 60) + "m ago";
-    if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
-    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) +
-           " " + d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-  }
+function loadLocal(){try{const d=localStorage.getItem("dash_data_v2");if(d)localData=JSON.parse(d)}catch(e){localData={}}}
+function saveLocal(){try{localStorage.setItem("dash_data_v2",JSON.stringify(localData))}catch(e){}}
+function getLD(id){return localData[id]||(localData[id]={checked:false,agent:"",convert:"Not Convert",callStatus:""})}
 
-  function formatPhone(p) {
-    if (!p) return "-";
-    const s = String(p);
-    if (s.startsWith("91") && s.length === 12) {
-      return "+91 " + s.substring(2, 7) + " " + s.substring(7);
+function formatTime(iso){
+  const d=new Date(iso),now=new Date(),diff=(now-d)/1000;
+  if(diff<60)return"just now";if(diff<3600)return Math.floor(diff/60)+"m ago";
+  if(diff<86400)return Math.floor(diff/3600)+"h ago";
+  return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+}
+function formatPhone(p){if(!p)return"-";const s=String(p);if(s.startsWith("91")&&s.length===12)return"+91 "+s.substring(2,7)+" "+s.substring(7);return s}
+
+function getCallStatus(log){
+  const ld=getLD(log.id);
+  if(ld.callStatus)return ld.callStatus;
+  if(log.status==="SUCCESS")return"Call Done";
+  if(log.status==="FAILED")return"Not Call";
+  if(log.status==="SKIPPED")return"Not Call";
+  return"Not Call";
+}
+
+function renderStats(){
+  let total=logs.length,calldone=0,calling=0,notcall=0,conv=0,wait=0,notconv=0,today=0;
+  const todayStr=new Date().toDateString();
+  const agentMap={};
+  AGENTS.forEach(a=>agentMap[a]={calls:0,conv:0,notc:0,wait:0});
+
+  logs.forEach(l=>{
+    const ld=getLD(l.id);
+    const cs=getCallStatus(l);
+    if(cs==="Call Done")calldone++;else if(cs==="Calling")calling++;else notcall++;
+    const cv=ld.convert||"Not Convert";
+    if(cv==="Convert Done")conv++;else if(cv==="Waiting")wait++;else notconv++;
+    if(new Date(l.created_at).toDateString()===todayStr)today++;
+    if(ld.agent&&agentMap[ld.agent]){
+      agentMap[ld.agent].calls++;
+      if(cv==="Convert Done")agentMap[ld.agent].conv++;
+      else if(cv==="Waiting")agentMap[ld.agent].wait++;
+      else agentMap[ld.agent].notc++;
     }
-    return s;
-  }
-
-  function badgeForStatus(s) {
-    const classes = { SUCCESS: "success", FAILED: "failed", SKIPPED: "skipped" };
-    return '<span class="badge ' + (classes[s] || "") + '">' + s + '</span>';
-  }
-
-  function renderLogs() {
-    const tbody = document.getElementById("logs-body");
-    const filtered = logs.filter(log => {
-      if (!searchTerm) return true;
-      const q = searchTerm.toLowerCase();
-      return (log.patient_number || "").toLowerCase().includes(q) ||
-             (log.contact_name || "").toLowerCase().includes(q) ||
-             (log.button_clicked || "").toLowerCase().includes(q);
-    });
-
-    if (filtered.length === 0) {
-      tbody.innerHTML =
-        '<tr><td colspan="7" class="empty-state">' +
-        '<div class="empty-state-icon">📭</div>' +
-        '<div>' + (searchTerm ? "No results found" : "No calls yet. Waiting for WhatsApp button clicks...") + '</div>' +
-        '</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = filtered.map(log => {
-      const isNew = !knownIds.has(log.id);
-      knownIds.add(log.id);
-      const canRedial = log.patient_number && log.status !== "SKIPPED";
-      return '<tr' + (isNew ? ' class="new-row"' : '') + '>' +
-        '<td class="time">' + formatTime(log.created_at) + '</td>' +
-        '<td class="name">' + (log.contact_name || '-') + '</td>' +
-        '<td class="phone">' + formatPhone(log.patient_number) + '</td>' +
-        '<td><span class="badge button">' + (log.button_clicked || '-') + '</span></td>' +
-        '<td>' + badgeForStatus(log.status) + '</td>' +
-        '<td class="hide-mobile phone">' + formatPhone(log.agent_number) + '</td>' +
-        '<td>' +
-          (canRedial
-            ? '<button class="redial-btn" onclick="redial(\'' + log.patient_number + '\', this)">📞 Redial</button>'
-            : '-') +
-        '</td>' +
-        '</tr>';
-    }).join("");
-  }
-
-  async function fetchLogs() {
-    try {
-      const [logsRes, statsRes] = await Promise.all([
-        fetch("/logs?limit=100"),
-        fetch("/stats")
-      ]);
-      const newLogs = await logsRes.json();
-      const stats = await statsRes.json();
-
-      // Check for new calls
-      const prevCount = logs.length;
-      logs = newLogs;
-
-      if (prevCount > 0 && newLogs.length > prevCount) {
-        const newCount = newLogs.length - prevCount;
-        showNotification("📞 " + newCount + " new call" + (newCount > 1 ? "s" : "") + " received!", "success");
-      }
-
-      document.getElementById("stat-total").textContent = stats.total || 0;
-      document.getElementById("stat-today").textContent = stats.today || 0;
-      document.getElementById("stat-success").textContent = stats.success || 0;
-      document.getElementById("stat-failed").textContent = stats.failed || 0;
-
-      renderLogs();
-      document.getElementById("live-status").textContent = "Live • " + new Date().toLocaleTimeString("en-IN", { hour12: true });
-    } catch (e) {
-      console.error("Failed to fetch:", e);
-      document.getElementById("live-status").textContent = "Offline";
-    }
-  }
-
-  async function redial(phone, btn) {
-    if (!confirm("Redial " + formatPhone(phone) + "?")) return;
-    btn.disabled = true;
-    btn.textContent = "Calling...";
-    try {
-      const res = await fetch("/test-call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patient_number: phone })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showNotification("✓ Call initiated to " + formatPhone(phone), "success");
-        setTimeout(fetchLogs, 1000);
-      } else {
-        showNotification("✗ Call failed: " + (data.error?.message || "Unknown error"), "error");
-      }
-    } catch (e) {
-      showNotification("✗ Network error", "error");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "📞 Redial";
-    }
-  }
-
-  function showNotification(msg, type) {
-    const n = document.getElementById("notification");
-    n.textContent = msg;
-    n.className = "notification " + type + " show";
-    setTimeout(() => { n.classList.remove("show"); }, 3500);
-  }
-
-  function refreshNow() {
-    fetchLogs();
-    showNotification("↻ Refreshed", "success");
-  }
-
-  function toggleAutoRefresh() {
-    autoRefresh = !autoRefresh;
-    const btn = document.getElementById("autorefresh-btn");
-    if (autoRefresh) {
-      btn.textContent = "⏸ Pause";
-      refreshInterval = setInterval(fetchLogs, 5000);
-    } else {
-      btn.textContent = "▶ Resume";
-      clearInterval(refreshInterval);
-    }
-  }
-
-  document.getElementById("search").addEventListener("input", (e) => {
-    searchTerm = e.target.value;
-    renderLogs();
   });
 
-  // Initial load
-  fetchLogs();
-  refreshInterval = setInterval(fetchLogs, 5000);
+  document.getElementById("s-total").textContent=total;
+  document.getElementById("s-today").textContent=today;
+  document.getElementById("s-calldone").textContent=calldone;
+  document.getElementById("s-calling").textContent=calling;
+  document.getElementById("s-notcall").textContent=notcall;
+  document.getElementById("s-conv").textContent=conv;
+  document.getElementById("s-wait").textContent=wait;
+  document.getElementById("s-notconv").textContent=notconv;
+
+  const perfDiv=document.getElementById("agent-perf");
+  perfDiv.innerHTML=AGENTS.map(a=>{
+    const d=agentMap[a];
+    return'<div class="agent-card"><div class="agent-name">'+a+'</div><div class="agent-metrics">'+
+      '<span class="agent-m calls">Calls: '+d.calls+'</span>'+
+      '<span class="agent-m conv">Conv: '+d.conv+'</span>'+
+      '<span class="agent-m wait">Wait: '+d.wait+'</span>'+
+      '<span class="agent-m notc">Not: '+d.notc+'</span></div></div>';
+  }).join("");
+}
+
+function renderTable(){
+  const tbody=document.getElementById("tbody");
+  const q=(document.getElementById("search").value||"").toLowerCase();
+  const fa=document.getElementById("filter-agent").value;
+  const fs=document.getElementById("filter-status").value;
+  const fc=document.getElementById("filter-convert").value;
+
+  const filtered=logs.filter(l=>{
+    const ld=getLD(l.id);
+    if(q&&!(l.patient_number||"").toLowerCase().includes(q)&&!(l.contact_name||"").toLowerCase().includes(q)&&!(l.button_clicked||"").toLowerCase().includes(q))return false;
+    if(fa&&ld.agent!==fa)return false;
+    if(fs&&getCallStatus(l)!==fs)return false;
+    if(fc&&(ld.convert||"Not Convert")!==fc)return false;
+    return true;
+  });
+
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="9" class="empty">No data found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=filtered.map(l=>{
+    const ld=getLD(l.id);
+    const isNew=!knownIds.has(l.id);knownIds.add(l.id);
+    const cs=getCallStatus(l);
+    const csBadge=cs==="Call Done"?'calldone':cs==="Calling"?'calling':'notcall';
+    const canRedial=l.patient_number&&l.status!=="SKIPPED";
+    return'<tr'+(isNew?' class="new-row"':'')+'>'+
+      '<td><input type="checkbox" '+(ld.checked?'checked':'')+' onchange="onCheck('+l.id+',this)"/></td>'+
+      '<td class="time">'+formatTime(l.created_at)+'</td>'+
+      '<td class="name" title="'+(l.contact_name||"")+'">'+( l.contact_name||'-')+'</td>'+
+      '<td class="phone">'+formatPhone(l.patient_number)+'</td>'+
+      '<td><span class="badge btn-type">'+(l.button_clicked||'-')+'</span></td>'+
+      '<td><span class="badge '+csBadge+'">'+cs+'</span></td>'+
+      '<td><select onchange="onAgent('+l.id+',this.value)" style="min-width:80px">'+
+        '<option value="">--</option>'+AGENTS.map(a=>'<option value="'+a+'"'+(ld.agent===a?' selected':'')+'>'+a+'</option>').join('')+'</select></td>'+
+      '<td><select onchange="onConvert('+l.id+',this.value)" style="min-width:100px">'+
+        '<option value="Not Convert"'+((!ld.convert||ld.convert==="Not Convert")?' selected':'')+'>Not Convert</option>'+
+        '<option value="Waiting"'+(ld.convert==="Waiting"?' selected':'')+'>Waiting</option>'+
+        '<option value="Convert Done"'+(ld.convert==="Convert Done"?' selected':'')+'>Convert Done</option></select></td>'+
+      '<td>'+(canRedial?'<button class="redial-btn" onclick="redial(\''+l.patient_number+'\',this)">📞 Redial</button>':'-')+'</td></tr>';
+  }).join("");
+}
+
+function onCheck(id,el){
+  const ld=getLD(id);
+  ld.checked=el.checked;
+  if(ld.checked){
+    const row=el.closest("tr");
+    const agentSel=row.querySelectorAll("select")[0];
+    if(!ld.agent&&agentSel){
+      agentSel.focus();
+    }
+  }
+  saveLocal();renderStats();
+}
+function onAgent(id,val){
+  const ld=getLD(id);ld.agent=val;
+  if(val){
+    ld.callStatus="Calling";
+    const row=document.querySelector('tr input[type=checkbox]');
+  }
+  saveLocal();renderStats();renderTable();
+}
+function onConvert(id,val){
+  const ld=getLD(id);ld.convert=val;
+  if(val==="Convert Done"||val==="Not Convert")ld.callStatus="Call Done";
+  saveLocal();renderStats();renderTable();
+}
+
+async function redial(phone,btn){
+  if(!confirm("Redial "+formatPhone(phone)+"?"))return;
+  btn.disabled=true;btn.textContent="Calling...";
+  try{
+    const res=await fetch("/test-call",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({patient_number:phone})});
+    const data=await res.json();
+    if(data.success){showNotify("✓ Call initiated to "+formatPhone(phone),"ok");setTimeout(fetchLogs,1500)}
+    else showNotify("✗ Failed: "+(data.error?.message||"Error"),"err");
+  }catch(e){showNotify("✗ Network error","err")}
+  finally{btn.disabled=false;btn.textContent="📞 Redial"}
+}
+
+function downloadExcel(){
+  const rows=logs.map(l=>{
+    const ld=getLD(l.id);
+    return{
+      "Date":new Date(l.created_at).toLocaleDateString("en-IN"),
+      "Time":new Date(l.created_at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}),
+      "Customer Name":l.contact_name||"",
+      "Phone":formatPhone(l.patient_number),
+      "Button Clicked":l.button_clicked||"",
+      "Call Status":getCallStatus(l),
+      "Agent":ld.agent||"",
+      "Convert Status":ld.convert||"Not Convert",
+      "API Status":l.status||"",
+    };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Call Logs");
+
+  const agentRows=AGENTS.map(a=>{
+    const d=logs.filter(l=>getLD(l.id).agent===a);
+    const conv=d.filter(l=>(getLD(l.id).convert)==="Convert Done").length;
+    const wait=d.filter(l=>(getLD(l.id).convert)==="Waiting").length;
+    const notc=d.filter(l=>(!getLD(l.id).convert||getLD(l.id).convert==="Not Convert")).length;
+    return{"Agent":a,"Total Calls":d.length,"Converted":conv,"Waiting":wait,"Not Converted":notc};
+  });
+  const ws2=XLSX.utils.json_to_sheet(agentRows);
+  XLSX.utils.book_append_sheet(wb,ws2,"Agent Performance");
+
+  const today=new Date().toLocaleDateString("en-IN").replace(/\//g,"-");
+  XLSX.utils.book_append_sheet(wb,ws2);
+  XLSX.writeFile(wb,"Call_Dashboard_"+today+".xlsx");
+  showNotify("📥 Excel downloaded!","ok");
+}
+
+async function fetchLogs(){
+  try{
+    const res=await fetch("/logs?limit=500");
+    const newLogs=await res.json();
+    logs=newLogs;
+    renderStats();renderTable();
+    document.getElementById("live-s").textContent="Live • "+new Date().toLocaleTimeString("en-IN",{hour12:true});
+  }catch(e){
+    document.getElementById("live-s").textContent="Offline";
+  }
+}
+
+function showNotify(msg,type){
+  const n=document.getElementById("notify");
+  n.textContent=msg;n.className="notify "+type+" show";
+  setTimeout(()=>n.classList.remove("show"),3000);
+}
+function refreshNow(){fetchLogs();showNotify("↻ Refreshed","ok")}
+
+document.getElementById("search").addEventListener("input",()=>renderTable());
+document.getElementById("filter-agent").addEventListener("change",()=>renderTable());
+document.getElementById("filter-status").addEventListener("change",()=>renderTable());
+document.getElementById("filter-convert").addEventListener("change",()=>renderTable());
+
+loadLocal();
+fetchLogs();
+refreshTimer=setInterval(fetchLogs,5000);
 </script>
 </body>
 </html>
