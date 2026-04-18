@@ -151,6 +151,7 @@ app.post("/wati-webhook", async (req, res) => {
       "919558591212": "Mittal",
       "919274682553": "Jay",
       "917490029085": "Khyati",
+      "917600082217": "Ruchik",
     };
     const agentName = AGENT_NAME_MAP[agentNumber] || "";
 
