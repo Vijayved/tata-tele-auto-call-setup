@@ -58,6 +58,7 @@ tr:hover td{background:#f8fafc}
 .badge.calling{background:#e0e7ff;color:#3730a3}
 .badge.calldone{background:#dcfce7;color:#166534}
 .badge.notcall{background:#f3f4f6;color:#6b7280}
+.badge.missed{background:#fff7ed;color:#c2410c}
 .phone{font-family:"SF Mono",Monaco,Consolas,monospace;font-size:12px;color:#475569}
 .name{font-weight:500;color:#1e293b;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .time{color:#94a3b8;font-size:11px;white-space:nowrap}
@@ -95,6 +96,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:#2563eb}
     <div class="stat s"><div class="stat-label">Call Done</div><div class="stat-val" id="s-calldone">0</div></div>
     <div class="stat" style=""><div class="stat-label">Calling</div><div class="stat-val" id="s-calling" style="color:#4f46e5">0</div></div>
     <div class="stat f"><div class="stat-label">Not Call</div><div class="stat-val" id="s-notcall">0</div></div>
+    <div class="stat" style=""><div class="stat-label">Missed Call</div><div class="stat-val" id="s-missed" style="color:#ea580c">0</div></div>
     <div class="stat s"><div class="stat-label">Converted</div><div class="stat-val" id="s-conv">0</div></div>
     <div class="stat w"><div class="stat-label">Waiting</div><div class="stat-val" id="s-wait">0</div></div>
     <div class="stat f"><div class="stat-label">Not Convert</div><div class="stat-val" id="s-notconv">0</div></div>
@@ -108,7 +110,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:#2563eb}
   <div class="controls">
     <input type="text" class="search" id="search" placeholder="🔍 Search phone, name, button..." />
     <select id="filter-agent" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Agents</option><option value="Khyati">Khyati</option><option value="Mittal">Mittal</option><option value="Aditi">Aditi</option><option value="Jay">Jay</option><option value="Apoorv">Apoorv</option></select>
-    <select id="filter-status" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Status</option><option value="Calling">Calling</option><option value="Call Done">Call Done</option><option value="Not Call">Not Call</option></select>
+    <select id="filter-status" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Status</option><option value="Calling">Calling</option><option value="Call Done">Call Done</option><option value="Not Call">Not Call</option><option value="Missed Call">Missed Call</option></select>
     <select id="filter-convert" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Convert</option><option value="Convert Done">Convert Done</option><option value="Waiting">Waiting</option><option value="Not Convert">Not Convert</option></select>
     <button class="btn" onclick="refreshNow()">↻ Refresh</button>
     <button class="btn green" onclick="downloadExcel()">📥 Excel Download</button>
@@ -169,26 +171,28 @@ function getCallStatus(log){
   const ld=getLD(log.id,log);
   if(ld.callStatus)return ld.callStatus;
   if(log.status==="SUCCESS")return"Call Done";
+  if(log.status==="MISSED")return"Missed Call";
   if(log.status==="FAILED")return"Not Call";
   if(log.status==="SKIPPED")return"Not Call";
   return"Not Call";
 }
 
 function renderStats(){
-  let total=logs.length,calldone=0,calling=0,notcall=0,conv=0,wait=0,notconv=0,today=0;
+  let total=logs.length,calldone=0,calling=0,notcall=0,missed=0,conv=0,wait=0,notconv=0,today=0;
   const todayStr=new Date().toDateString();
   const agentMap={};
-  AGENTS.forEach(a=>agentMap[a]={calls:0,conv:0,notc:0,wait:0});
+  AGENTS.forEach(a=>agentMap[a]={calls:0,conv:0,notc:0,wait:0,missed:0});
 
   logs.forEach(l=>{
     const ld=getLD(l.id,l);
     const cs=getCallStatus(l);
-    if(cs==="Call Done")calldone++;else if(cs==="Calling")calling++;else notcall++;
+    if(cs==="Call Done")calldone++;else if(cs==="Calling")calling++;else if(cs==="Missed Call")missed++;else notcall++;
     const cv=ld.convert||"Not Convert";
     if(cv==="Convert Done")conv++;else if(cv==="Waiting")wait++;else notconv++;
     if(new Date(l.created_at).toDateString()===todayStr)today++;
     if(ld.agent&&agentMap[ld.agent]){
       agentMap[ld.agent].calls++;
+      if(cs==="Missed Call")agentMap[ld.agent].missed++;
       if(cv==="Convert Done")agentMap[ld.agent].conv++;
       else if(cv==="Waiting")agentMap[ld.agent].wait++;
       else agentMap[ld.agent].notc++;
@@ -200,6 +204,7 @@ function renderStats(){
   document.getElementById("s-calldone").textContent=calldone;
   document.getElementById("s-calling").textContent=calling;
   document.getElementById("s-notcall").textContent=notcall;
+  document.getElementById("s-missed").textContent=missed;
   document.getElementById("s-conv").textContent=conv;
   document.getElementById("s-wait").textContent=wait;
   document.getElementById("s-notconv").textContent=notconv;
@@ -211,7 +216,8 @@ function renderStats(){
       '<span class="agent-m calls">Calls: '+d.calls+'</span>'+
       '<span class="agent-m conv">Conv: '+d.conv+'</span>'+
       '<span class="agent-m wait">Wait: '+d.wait+'</span>'+
-      '<span class="agent-m notc">Not: '+d.notc+'</span></div></div>';
+      '<span class="agent-m notc">Not: '+d.notc+'</span>'+
+      '<span class="agent-m" style="background:#fff7ed;color:#c2410c">Miss: '+d.missed+'</span></div></div>';
   }).join("");
 }
 
@@ -240,7 +246,7 @@ function renderTable(){
     const ld=getLD(l.id,l);
     const isNew=!knownIds.has(l.id);knownIds.add(l.id);
     const cs=getCallStatus(l);
-    const csBadge=cs==="Call Done"?'calldone':cs==="Calling"?'calling':'notcall';
+    const csBadge=cs==="Call Done"?'calldone':cs==="Calling"?'calling':cs==="Missed Call"?'missed':'notcall';
     const canRedial=l.patient_number&&l.status!=="SKIPPED";
     return'<tr'+(isNew?' class="new-row"':'')+'>'+
       '<td><input type="checkbox" '+(ld.checked?'checked':'')+' onchange="onCheck('+l.id+',this)"/></td>'+
@@ -321,7 +327,8 @@ function downloadExcel(){
     const conv=d.filter(l=>(getLD(l.id,l).convert)==="Convert Done").length;
     const wait=d.filter(l=>(getLD(l.id,l).convert)==="Waiting").length;
     const notc=d.filter(l=>(!getLD(l.id,l).convert||getLD(l.id,l).convert==="Not Convert")).length;
-    return{"Agent":a,"Total Calls":d.length,"Converted":conv,"Waiting":wait,"Not Converted":notc};
+    const miss=d.filter(l=>getCallStatus(l)==="Missed Call").length;
+    return{"Agent":a,"Total Calls":d.length,"Converted":conv,"Waiting":wait,"Not Converted":notc,"Missed Calls":miss};
   });
   const ws2=XLSX.utils.json_to_sheet(agentRows);
   XLSX.utils.book_append_sheet(wb,ws2,"Agent Performance");
