@@ -139,11 +139,13 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:#2563eb}
 <div class="notify" id="notify"></div>
 
 <script>
-const AGENTS=["Khyati","Mittal","Aditi","Jay","Apoorv","Ruchik"];
+const AGENTS_DEFAULT=["Khyati","Mittal","Aditi","Jay","Apoorv","Ruchik"];
+let AGENTS=[];
 let logs=[];
 let localData={};
 let knownIds=new Set();
 let refreshTimer;
+let agentsLoaded=false;
 
 function loadLocal(){try{const d=localStorage.getItem("dash_data_v2");if(d)localData=JSON.parse(d)}catch(e){localData={}}}
 function saveLocal(){try{localStorage.setItem("dash_data_v2",JSON.stringify(localData))}catch(e){}}
@@ -341,6 +343,22 @@ function downloadExcel(){
 
 async function fetchLogs(){
   try{
+    // Load agents from server (once, or if not loaded)
+    if(!agentsLoaded){
+      try{
+        const ar=await fetch("/agents");
+        const serverAgents=await ar.json();
+        if(serverAgents&&serverAgents.length>0){
+          AGENTS=serverAgents;
+        }else{
+          AGENTS=AGENTS_DEFAULT;
+        }
+      }catch(e){AGENTS=AGENTS_DEFAULT}
+      // Rebuild agent filter dropdown
+      const sel=document.getElementById("filter-agent");
+      sel.innerHTML='<option value="">All Agents</option>'+AGENTS.map(a=>'<option value="'+a+'">'+a+'</option>').join('');
+      agentsLoaded=true;
+    }
     const res=await fetch("/logs?limit=500");
     const newLogs=await res.json();
     logs=newLogs;
