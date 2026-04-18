@@ -12,35 +12,38 @@ class AgentManager {
       throw new Error("AGENT_NUMBERS not configured in .env");
     }
 
+    // Parse AGENT_NAMES: "919274682553:Jay,917600082217:Ruchik"
+    this.nameMap = {};
+    const namesRaw = process.env.AGENT_NAMES || "";
+    namesRaw.split(",").forEach((entry) => {
+      const [num, name] = entry.split(":").map((s) => s.trim());
+      if (num && name) this.nameMap[num] = name;
+    });
+
+    this.agentNames = this.agents.map((num) => this.nameMap[num] || num);
+
     this.currentIndex = 0;
     logger.info(`AgentManager initialized with ${this.agents.length} agent(s)`, {
       agents: this.agents,
+      names: this.agentNames,
     });
   }
 
-  /**
-   * Get the next agent number using round-robin
-   */
   getNextAgent() {
     const agent = this.agents[this.currentIndex];
     this.currentIndex = (this.currentIndex + 1) % this.agents.length;
-    logger.info(`Selected agent: ${agent} (index: ${this.currentIndex})`);
+    logger.info(`Selected agent: ${agent} (${this.getAgentName(agent)})`);
     return agent;
   }
 
-  /**
-   * Get a specific agent by index
-   */
-  getAgent(index) {
-    if (index >= 0 && index < this.agents.length) {
-      return this.agents[index];
-    }
-    return null;
+  getAgentName(number) {
+    return this.nameMap[number] || "";
   }
 
-  /**
-   * Get total number of agents
-   */
+  getAgentNamesList() {
+    return [...new Set(this.agentNames)];
+  }
+
   getAgentCount() {
     return this.agents.length;
   }
