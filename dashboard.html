@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call Dashboard | WATI + Tata Tele</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8f9fa;color:#1a1a2e;min-height:100vh}
+.container{max-width:1500px;margin:0 auto;padding:16px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;background:#fff;padding:16px 20px;border-radius:10px;border:1px solid #e2e8f0}
+.header h1{font-size:20px;font-weight:600;color:#1a1a2e}
+.header .sub{color:#64748b;font-size:12px;margin-top:2px}
+.live{display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;color:#059669;padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#10b981;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.stat{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}
+.stat-label{color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;font-weight:600}
+.stat-val{font-size:22px;font-weight:700}
+.stat.s .stat-val{color:#059669}.stat.f .stat-val{color:#dc2626}.stat.t .stat-val{color:#2563eb}.stat.w .stat-val{color:#d97706}
+
+.agent-stats{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:12px}
+.agent-stats h3{font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:10px}
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.agent-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px}
+.agent-name{font-weight:600;font-size:13px;color:#1e293b;margin-bottom:6px}
+.agent-metrics{display:flex;gap:8px;flex-wrap:wrap}
+.agent-m{font-size:11px;padding:3px 8px;border-radius:4px;font-weight:500}
+.agent-m.calls{background:#dbeafe;color:#1d4ed8}
+.agent-m.conv{background:#dcfce7;color:#166534}
+.agent-m.notc{background:#fee2e2;color:#991b1b}
+.agent-m.wait{background:#fef3c7;color:#92400e}
+
+.controls{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.search{background:#fff;border:1px solid #d1d5db;color:#1a1a2e;padding:8px 12px;border-radius:6px;font-size:13px;flex:1;min-width:180px}
+.search:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+.btn{padding:8px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #d1d5db;background:#fff;color:#374151;transition:all .15s}
+.btn:hover{background:#f1f5f9}
+.btn.primary{background:#2563eb;color:#fff;border-color:#2563eb}
+.btn.primary:hover{background:#1d4ed8}
+.btn.green{background:#059669;color:#fff;border-color:#059669}
+.btn.green:hover{background:#047857}
+
+.table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:1100px}
+thead{background:#f8fafc;border-bottom:2px solid #e2e8f0}
+th{text-align:left;padding:10px 10px;color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle}
+tr:hover td{background:#f8fafc}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;white-space:nowrap}
+.badge.success{background:#dcfce7;color:#166534}
+.badge.failed{background:#fee2e2;color:#991b1b}
+.badge.skipped{background:#fef3c7;color:#92400e}
+.badge.btn-type{background:#dbeafe;color:#1d4ed8;text-transform:none;font-weight:500}
+.badge.calling{background:#e0e7ff;color:#3730a3}
+.badge.calldone{background:#dcfce7;color:#166534}
+.badge.notcall{background:#f3f4f6;color:#6b7280}
+.phone{font-family:"SF Mono",Monaco,Consolas,monospace;font-size:12px;color:#475569}
+.name{font-weight:500;color:#1e293b;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.time{color:#94a3b8;font-size:11px;white-space:nowrap}
+select{padding:4px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:11px;background:#fff;color:#1e293b;cursor:pointer}
+select:focus{outline:none;border-color:#3b82f6}
+input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:#2563eb}
+.empty{text-align:center;padding:40px 20px;color:#94a3b8}
+.notify{position:fixed;top:16px;right:16px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;color:#1e293b;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.1);transform:translateX(400px);transition:transform .3s;z-index:1000}
+.notify.show{transform:translateX(0)}
+.notify.ok{border-left:3px solid #10b981}
+.notify.err{border-left:3px solid #ef4444}
+.new-row{animation:flash 2s ease-out}
+@keyframes flash{0%{background:#dbeafe}100%{background:transparent}}
+.redial-btn{background:#059669;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap}
+.redial-btn:hover{background:#047857}
+.redial-btn:disabled{background:#d1d5db;cursor:not-allowed}
+.status-row{display:flex;gap:4px;align-items:center}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>📞 Call Dashboard</h1>
+      <div class="sub">WATI WhatsApp → Tata Tele Smartflo</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="live"><span class="live-dot"></span><span id="live-s">Live</span></div>
+    </div>
+  </div>
+
+  <div class="stats" id="stats-area">
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-val" id="s-total">0</div></div>
+    <div class="stat t"><div class="stat-label">Today</div><div class="stat-val" id="s-today">0</div></div>
+    <div class="stat s"><div class="stat-label">Call Done</div><div class="stat-val" id="s-calldone">0</div></div>
+    <div class="stat" style=""><div class="stat-label">Calling</div><div class="stat-val" id="s-calling" style="color:#4f46e5">0</div></div>
+    <div class="stat f"><div class="stat-label">Not Call</div><div class="stat-val" id="s-notcall">0</div></div>
+    <div class="stat s"><div class="stat-label">Converted</div><div class="stat-val" id="s-conv">0</div></div>
+    <div class="stat w"><div class="stat-label">Waiting</div><div class="stat-val" id="s-wait">0</div></div>
+    <div class="stat f"><div class="stat-label">Not Convert</div><div class="stat-val" id="s-notconv">0</div></div>
+  </div>
+
+  <div class="agent-stats">
+    <h3>📊 Agent Performance</h3>
+    <div class="agent-grid" id="agent-perf"></div>
+  </div>
+
+  <div class="controls">
+    <input type="text" class="search" id="search" placeholder="🔍 Search phone, name, button..." />
+    <select id="filter-agent" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Agents</option><option value="Khyati">Khyati</option><option value="Mittal">Mittal</option><option value="Aditi">Aditi</option><option value="Jay">Jay</option><option value="Apoorv">Apoorv</option></select>
+    <select id="filter-status" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Status</option><option value="Calling">Calling</option><option value="Call Done">Call Done</option><option value="Not Call">Not Call</option></select>
+    <select id="filter-convert" style="padding:8px 10px;font-size:12px;border-radius:6px"><option value="">All Convert</option><option value="Convert Done">Convert Done</option><option value="Waiting">Waiting</option><option value="Not Convert">Not Convert</option></select>
+    <button class="btn" onclick="refreshNow()">↻ Refresh</button>
+    <button class="btn green" onclick="downloadExcel()">📥 Excel Download</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">✓</th>
+          <th>Time</th>
+          <th>Customer</th>
+          <th>Phone</th>
+          <th>Button</th>
+          <th>Call Status</th>
+          <th>Agent</th>
+          <th>Convert</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="notify" id="notify"></div>
+
+<script>
+const AGENTS=["Khyati","Mittal","Aditi","Jay","Apoorv"];
+let logs=[];
+let localData={};
+let knownIds=new Set();
+let refreshTimer;
+
+function loadLocal(){try{const d=localStorage.getItem("dash_data_v2");if(d)localData=JSON.parse(d)}catch(e){localData={}}}
+function saveLocal(){try{localStorage.setItem("dash_data_v2",JSON.stringify(localData))}catch(e){}}
+function getLD(id,log){
+  if(!localData[id])localData[id]={checked:false,agent:"",convert:"Not Convert",callStatus:""};
+  const ld=localData[id];
+  // Auto-assign agent from server if not manually set
+  if(!ld.agent&&log&&log.agent_name){
+    ld.agent=log.agent_name;
+    ld.checked=true;
+    saveLocal();
+  }
+  return ld;
+}
+
+function formatTime(iso){
+  const d=new Date(iso),now=new Date(),diff=(now-d)/1000;
+  if(diff<60)return"just now";if(diff<3600)return Math.floor(diff/60)+"m ago";
+  if(diff<86400)return Math.floor(diff/3600)+"h ago";
+  return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+}
+function formatPhone(p){if(!p)return"-";const s=String(p);if(s.startsWith("91")&&s.length===12)return"+91 "+s.substring(2,7)+" "+s.substring(7);return s}
+
+function getCallStatus(log){
+  const ld=getLD(log.id,log);
+  if(ld.callStatus)return ld.callStatus;
+  if(log.status==="SUCCESS")return"Call Done";
+  if(log.status==="FAILED")return"Not Call";
+  if(log.status==="SKIPPED")return"Not Call";
+  return"Not Call";
+}
+
+function renderStats(){
+  let total=logs.length,calldone=0,calling=0,notcall=0,conv=0,wait=0,notconv=0,today=0;
+  const todayStr=new Date().toDateString();
+  const agentMap={};
+  AGENTS.forEach(a=>agentMap[a]={calls:0,conv:0,notc:0,wait:0});
+
+  logs.forEach(l=>{
+    const ld=getLD(l.id,l);
+    const cs=getCallStatus(l);
+    if(cs==="Call Done")calldone++;else if(cs==="Calling")calling++;else notcall++;
+    const cv=ld.convert||"Not Convert";
+    if(cv==="Convert Done")conv++;else if(cv==="Waiting")wait++;else notconv++;
+    if(new Date(l.created_at).toDateString()===todayStr)today++;
+    if(ld.agent&&agentMap[ld.agent]){
+      agentMap[ld.agent].calls++;
+      if(cv==="Convert Done")agentMap[ld.agent].conv++;
+      else if(cv==="Waiting")agentMap[ld.agent].wait++;
+      else agentMap[ld.agent].notc++;
+    }
+  });
+
+  document.getElementById("s-total").textContent=total;
+  document.getElementById("s-today").textContent=today;
+  document.getElementById("s-calldone").textContent=calldone;
+  document.getElementById("s-calling").textContent=calling;
+  document.getElementById("s-notcall").textContent=notcall;
+  document.getElementById("s-conv").textContent=conv;
+  document.getElementById("s-wait").textContent=wait;
+  document.getElementById("s-notconv").textContent=notconv;
+
+  const perfDiv=document.getElementById("agent-perf");
+  perfDiv.innerHTML=AGENTS.map(a=>{
+    const d=agentMap[a];
+    return'<div class="agent-card"><div class="agent-name">'+a+'</div><div class="agent-metrics">'+
+      '<span class="agent-m calls">Calls: '+d.calls+'</span>'+
+      '<span class="agent-m conv">Conv: '+d.conv+'</span>'+
+      '<span class="agent-m wait">Wait: '+d.wait+'</span>'+
+      '<span class="agent-m notc">Not: '+d.notc+'</span></div></div>';
+  }).join("");
+}
+
+function renderTable(){
+  const tbody=document.getElementById("tbody");
+  const q=(document.getElementById("search").value||"").toLowerCase();
+  const fa=document.getElementById("filter-agent").value;
+  const fs=document.getElementById("filter-status").value;
+  const fc=document.getElementById("filter-convert").value;
+
+  const filtered=logs.filter(l=>{
+    const ld=getLD(l.id,l);
+    if(q&&!(l.patient_number||"").toLowerCase().includes(q)&&!(l.contact_name||"").toLowerCase().includes(q)&&!(l.button_clicked||"").toLowerCase().includes(q))return false;
+    if(fa&&ld.agent!==fa)return false;
+    if(fs&&getCallStatus(l)!==fs)return false;
+    if(fc&&(ld.convert||"Not Convert")!==fc)return false;
+    return true;
+  });
+
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="9" class="empty">No data found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=filtered.map(l=>{
+    const ld=getLD(l.id,l);
+    const isNew=!knownIds.has(l.id);knownIds.add(l.id);
+    const cs=getCallStatus(l);
+    const csBadge=cs==="Call Done"?'calldone':cs==="Calling"?'calling':'notcall';
+    const canRedial=l.patient_number&&l.status!=="SKIPPED";
+    return'<tr'+(isNew?' class="new-row"':'')+'>'+
+      '<td><input type="checkbox" '+(ld.checked?'checked':'')+' onchange="onCheck('+l.id+',this)"/></td>'+
+      '<td class="time">'+formatTime(l.created_at)+'</td>'+
+      '<td class="name" title="'+(l.contact_name||"")+'">'+( l.contact_name||'-')+'</td>'+
+      '<td class="phone">'+formatPhone(l.patient_number)+'</td>'+
+      '<td><span class="badge btn-type">'+(l.button_clicked||'-')+'</span></td>'+
+      '<td><span class="badge '+csBadge+'">'+cs+'</span></td>'+
+      '<td><select onchange="onAgent('+l.id+',this.value)" style="min-width:80px">'+
+        '<option value="">--</option>'+AGENTS.map(a=>'<option value="'+a+'"'+(ld.agent===a?' selected':'')+'>'+a+'</option>').join('')+'</select></td>'+
+      '<td><select onchange="onConvert('+l.id+',this.value)" style="min-width:100px">'+
+        '<option value="Not Convert"'+((!ld.convert||ld.convert==="Not Convert")?' selected':'')+'>Not Convert</option>'+
+        '<option value="Waiting"'+(ld.convert==="Waiting"?' selected':'')+'>Waiting</option>'+
+        '<option value="Convert Done"'+(ld.convert==="Convert Done"?' selected':'')+'>Convert Done</option></select></td>'+
+      '<td>'+(canRedial?'<button class="redial-btn" onclick="redial(\''+l.patient_number+'\',this)">📞 Redial</button>':'-')+'</td></tr>';
+  }).join("");
+}
+
+function onCheck(id,el){
+  const ld=getLD(id);
+  ld.checked=el.checked;
+  if(ld.checked){
+    const row=el.closest("tr");
+    const agentSel=row.querySelectorAll("select")[0];
+    if(!ld.agent&&agentSel){
+      agentSel.focus();
+    }
+  }
+  saveLocal();renderStats();
+}
+function onAgent(id,val){
+  const ld=getLD(id);ld.agent=val;
+  if(val){
+    ld.callStatus="Calling";
+    const row=document.querySelector('tr input[type=checkbox]');
+  }
+  saveLocal();renderStats();renderTable();
+}
+function onConvert(id,val){
+  const ld=getLD(id);ld.convert=val;
+  if(val==="Convert Done"||val==="Not Convert")ld.callStatus="Call Done";
+  saveLocal();renderStats();renderTable();
+}
+
+async function redial(phone,btn){
+  if(!confirm("Redial "+formatPhone(phone)+"?"))return;
+  btn.disabled=true;btn.textContent="Calling...";
+  try{
+    const res=await fetch("/test-call",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({patient_number:phone})});
+    const data=await res.json();
+    if(data.success){showNotify("✓ Call initiated to "+formatPhone(phone),"ok");setTimeout(fetchLogs,1500)}
+    else showNotify("✗ Failed: "+(data.error?.message||"Error"),"err");
+  }catch(e){showNotify("✗ Network error","err")}
+  finally{btn.disabled=false;btn.textContent="📞 Redial"}
+}
+
+function downloadExcel(){
+  const rows=logs.map(l=>{
+    const ld=getLD(l.id,l);
+    return{
+      "Date":new Date(l.created_at).toLocaleDateString("en-IN"),
+      "Time":new Date(l.created_at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}),
+      "Customer Name":l.contact_name||"",
+      "Phone":formatPhone(l.patient_number),
+      "Button Clicked":l.button_clicked||"",
+      "Call Status":getCallStatus(l),
+      "Agent":ld.agent||"",
+      "Convert Status":ld.convert||"Not Convert",
+      "API Status":l.status||"",
+    };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Call Logs");
+
+  const agentRows=AGENTS.map(a=>{
+    const d=logs.filter(l=>getLD(l.id,l).agent===a);
+    const conv=d.filter(l=>(getLD(l.id,l).convert)==="Convert Done").length;
+    const wait=d.filter(l=>(getLD(l.id,l).convert)==="Waiting").length;
+    const notc=d.filter(l=>(!getLD(l.id,l).convert||getLD(l.id,l).convert==="Not Convert")).length;
+    return{"Agent":a,"Total Calls":d.length,"Converted":conv,"Waiting":wait,"Not Converted":notc};
+  });
+  const ws2=XLSX.utils.json_to_sheet(agentRows);
+  XLSX.utils.book_append_sheet(wb,ws2,"Agent Performance");
+
+  const today=new Date().toLocaleDateString("en-IN").replace(/\//g,"-");
+  XLSX.utils.book_append_sheet(wb,ws2);
+  XLSX.writeFile(wb,"Call_Dashboard_"+today+".xlsx");
+  showNotify("📥 Excel downloaded!","ok");
+}
+
+async function fetchLogs(){
+  try{
+    const res=await fetch("/logs?limit=500");
+    const newLogs=await res.json();
+    logs=newLogs;
+    renderStats();renderTable();
+    document.getElementById("live-s").textContent="Live • "+new Date().toLocaleTimeString("en-IN",{hour12:true});
+  }catch(e){
+    document.getElementById("live-s").textContent="Offline";
+  }
+}
+
+function showNotify(msg,type){
+  const n=document.getElementById("notify");
+  n.textContent=msg;n.className="notify "+type+" show";
+  setTimeout(()=>n.classList.remove("show"),3000);
+}
+function refreshNow(){fetchLogs();showNotify("↻ Refreshed","ok")}
+
+document.getElementById("search").addEventListener("input",()=>renderTable());
+document.getElementById("filter-agent").addEventListener("change",()=>renderTable());
+document.getElementById("filter-status").addEventListener("change",()=>renderTable());
+document.getElementById("filter-convert").addEventListener("change",()=>renderTable());
+
+loadLocal();
+fetchLogs();
+refreshTimer=setInterval(fetchLogs,5000);
+</script>
+</body>
+</html>
