@@ -146,14 +146,9 @@ app.post("/wati-webhook", async (req, res) => {
     // ── Step 7: Get next available agent (round-robin) ──
     const agentNumber = agentManager.getNextAgent();
 
-    // Map agent phone number to agent name for dashboard
-    const AGENT_NAME_MAP = {
-      "919558591212": "Mittal",
-      "919274682553": "Jay",
-      "917490029085": "Khyati",
-      "917600082217": "Ruchik",
-    };
-    const agentName = AGENT_NAME_MAP[agentNumber] || "";
+    // Map agent phone number to agent name from env
+    // Format: AGENT_NAMES=919274682553:Jay,917600082217:Ruchik
+    const agentName = agentManager.getAgentName(agentNumber);
 
     // ── Step 8: Initiate Click-to-Call via Tata Tele ──
     logger.info("Triggering Tata Tele Click-to-Call", {
@@ -261,6 +256,10 @@ app.post("/call-status", (req, res) => {
 app.get("/stats", (_req, res) => {
   const stats = callStore.getStats();
   res.json(stats);
+});
+
+app.get("/agents", (_req, res) => {
+  res.json(agentManager.getAgentNamesList());
 });
 
 app.get("/logs", (req, res) => {
