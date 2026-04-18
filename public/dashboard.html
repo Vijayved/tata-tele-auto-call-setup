@@ -145,7 +145,17 @@ let refreshTimer;
 
 function loadLocal(){try{const d=localStorage.getItem("dash_data_v2");if(d)localData=JSON.parse(d)}catch(e){localData={}}}
 function saveLocal(){try{localStorage.setItem("dash_data_v2",JSON.stringify(localData))}catch(e){}}
-function getLD(id){return localData[id]||(localData[id]={checked:false,agent:"",convert:"Not Convert",callStatus:""})}
+function getLD(id,log){
+  if(!localData[id])localData[id]={checked:false,agent:"",convert:"Not Convert",callStatus:""};
+  const ld=localData[id];
+  // Auto-assign agent from server if not manually set
+  if(!ld.agent&&log&&log.agent_name){
+    ld.agent=log.agent_name;
+    ld.checked=true;
+    saveLocal();
+  }
+  return ld;
+}
 
 function formatTime(iso){
   const d=new Date(iso),now=new Date(),diff=(now-d)/1000;
@@ -156,7 +166,7 @@ function formatTime(iso){
 function formatPhone(p){if(!p)return"-";const s=String(p);if(s.startsWith("91")&&s.length===12)return"+91 "+s.substring(2,7)+" "+s.substring(7);return s}
 
 function getCallStatus(log){
-  const ld=getLD(log.id);
+  const ld=getLD(log.id,log);
   if(ld.callStatus)return ld.callStatus;
   if(log.status==="SUCCESS")return"Call Done";
   if(log.status==="FAILED")return"Not Call";
@@ -171,7 +181,7 @@ function renderStats(){
   AGENTS.forEach(a=>agentMap[a]={calls:0,conv:0,notc:0,wait:0});
 
   logs.forEach(l=>{
-    const ld=getLD(l.id);
+    const ld=getLD(l.id,l);
     const cs=getCallStatus(l);
     if(cs==="Call Done")calldone++;else if(cs==="Calling")calling++;else notcall++;
     const cv=ld.convert||"Not Convert";
@@ -213,7 +223,7 @@ function renderTable(){
   const fc=document.getElementById("filter-convert").value;
 
   const filtered=logs.filter(l=>{
-    const ld=getLD(l.id);
+    const ld=getLD(l.id,l);
     if(q&&!(l.patient_number||"").toLowerCase().includes(q)&&!(l.contact_name||"").toLowerCase().includes(q)&&!(l.button_clicked||"").toLowerCase().includes(q))return false;
     if(fa&&ld.agent!==fa)return false;
     if(fs&&getCallStatus(l)!==fs)return false;
@@ -227,7 +237,7 @@ function renderTable(){
   }
 
   tbody.innerHTML=filtered.map(l=>{
-    const ld=getLD(l.id);
+    const ld=getLD(l.id,l);
     const isNew=!knownIds.has(l.id);knownIds.add(l.id);
     const cs=getCallStatus(l);
     const csBadge=cs==="Call Done"?'calldone':cs==="Calling"?'calling':'notcall';
@@ -289,7 +299,7 @@ async function redial(phone,btn){
 
 function downloadExcel(){
   const rows=logs.map(l=>{
-    const ld=getLD(l.id);
+    const ld=getLD(l.id,l);
     return{
       "Date":new Date(l.created_at).toLocaleDateString("en-IN"),
       "Time":new Date(l.created_at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true}),
@@ -307,10 +317,10 @@ function downloadExcel(){
   XLSX.utils.book_append_sheet(wb,ws,"Call Logs");
 
   const agentRows=AGENTS.map(a=>{
-    const d=logs.filter(l=>getLD(l.id).agent===a);
-    const conv=d.filter(l=>(getLD(l.id).convert)==="Convert Done").length;
-    const wait=d.filter(l=>(getLD(l.id).convert)==="Waiting").length;
-    const notc=d.filter(l=>(!getLD(l.id).convert||getLD(l.id).convert==="Not Convert")).length;
+    const d=logs.filter(l=>getLD(l.id,l).agent===a);
+    const conv=d.filter(l=>(getLD(l.id,l).convert)==="Convert Done").length;
+    const wait=d.filter(l=>(getLD(l.id,l).convert)==="Waiting").length;
+    const notc=d.filter(l=>(!getLD(l.id,l).convert||getLD(l.id,l).convert==="Not Convert")).length;
     return{"Agent":a,"Total Calls":d.length,"Converted":conv,"Waiting":wait,"Not Converted":notc};
   });
   const ws2=XLSX.utils.json_to_sheet(agentRows);
