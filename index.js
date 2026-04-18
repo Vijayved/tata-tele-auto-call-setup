@@ -38,11 +38,11 @@ app.use((req, res, next) => {
 // ROUTE 0: Dashboard (UI)
 // ═══════════════════════════════════════════
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+  res.sendFile(path.join(__dirname, "dashboard.html"));
 });
 
 app.get("/dashboard", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+  res.sendFile(path.join(__dirname, "dashboard.html"));
 });
 
 // ═══════════════════════════════════════════
@@ -146,6 +146,14 @@ app.post("/wati-webhook", async (req, res) => {
     // ── Step 7: Get next available agent (round-robin) ──
     const agentNumber = agentManager.getNextAgent();
 
+    // Map agent phone number to agent name for dashboard
+    const AGENT_NAME_MAP = {
+      "919558591212": "Mittal",
+      "919274682553": "Jay",
+      "917490029085": "Khyati",
+    };
+    const agentName = AGENT_NAME_MAP[agentNumber] || "";
+
     // ── Step 8: Initiate Click-to-Call via Tata Tele ──
     logger.info("Triggering Tata Tele Click-to-Call", {
       agent: agentNumber,
@@ -158,6 +166,7 @@ app.post("/wati-webhook", async (req, res) => {
     const logEntry = callStore.addLog({
       patient_number: patientNumber,
       agent_number: agentNumber,
+      agent_name: agentName,
       button_clicked: buttonText,
       contact_name: contactName,
       status: result.success ? "SUCCESS" : "FAILED",
