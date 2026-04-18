@@ -162,6 +162,16 @@ app.post("/wati-webhook", async (req, res) => {
 
     const result = await callService.initiateCall(agentNumber, patientNumber);
 
+    // Detect missed call from Tata Tele response
+    const tataMsg = result.data?.message || result.error?.message || "";
+    const isMissed = tataMsg.toLowerCase().includes("missed") || 
+                     tataMsg.toLowerCase().includes("no answer") ||
+                     tataMsg.toLowerCase().includes("not answered");
+    
+    let callStatus = "FAILED";
+    if (result.success && !isMissed) callStatus = "SUCCESS";
+    else if (isMissed) callStatus = "MISSED";
+
     // ── Step 9: Log the result ──
     const logEntry = callStore.addLog({
       patient_number: patientNumber,
@@ -169,22 +179,36 @@ app.post("/wati-webhook", async (req, res) => {
       agent_name: agentName,
       button_clicked: buttonText,
       contact_name: contactName,
-      status: result.success ? "SUCCESS" : "FAILED",
+      status: callStatus,
       attempts: result.attempt || 0,
       tata_response: result.data || result.error,
       processing_time_ms: Date.now() - startTime,
     });
 
-    if (result.success) {
+    if (callStatus === "SUCCESS") {
       logger.info("Call successfully initiated!", {
         logId: logEntry.id,
         agent: agentNumber,
+        agentName,
         patient: patientNumber,
         processingTime: `${Date.now() - startTime}ms`,
       });
 
       return res.json({
         status: "call_initiated",
+        call_id: logEntry.id,
+        agent: agentNumber,
+      });
+    } else if (callStatus === "MISSED") {
+      logger.warn("Call missed by agent", {
+        logId: logEntry.id,
+        agent: agentNumber,
+        agentName,
+        patient: patientNumber,
+      });
+
+      return res.status(200).json({
+        status: "call_missed",
         call_id: logEntry.id,
         agent: agentNumber,
       });
