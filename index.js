@@ -259,7 +259,18 @@ app.get("/stats", (_req, res) => {
 });
 
 app.get("/agents", (_req, res) => {
-  res.json(agentManager.getAgentNamesList());
+  res.json(agentManager.getAgentsInfo());
+});
+
+app.post("/agents/toggle", (req, res) => {
+  const { number, active } = req.body;
+  if (!number) return res.status(400).json({ error: "number required" });
+  const result = agentManager.setAgentStatus(number, active);
+  if (result) {
+    res.json({ success: true, agents: agentManager.getAgentsInfo() });
+  } else {
+    res.status(404).json({ error: "Agent not found" });
+  }
 });
 
 app.get("/logs", (req, res) => {
