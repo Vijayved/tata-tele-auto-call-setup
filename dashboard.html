@@ -76,6 +76,12 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:#2563eb}
 .redial-btn:hover{background:#047857}
 .redial-btn:disabled{background:#d1d5db;cursor:not-allowed}
 .status-row{display:flex;gap:4px;align-items:center}
+.toggle{position:relative;width:36px;height:20px;border-radius:10px;background:#d1d5db;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:#059669}
+.toggle .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle.on .knob{left:18px}
+.leave-badge{font-size:10px;padding:2px 6px;border-radius:3px;background:#fee2e2;color:#991b1b;font-weight:600}
+.active-badge{font-size:10px;padding:2px 6px;border-radius:3px;background:#dcfce7;color:#166534;font-weight:600}
 </style>
 </head>
 <body>
@@ -212,14 +218,24 @@ function renderStats(){
   document.getElementById("s-notconv").textContent=notconv;
 
   const perfDiv=document.getElementById("agent-perf");
-  perfDiv.innerHTML=AGENTS.map(a=>{
-    const d=agentMap[a];
-    return'<div class="agent-card"><div class="agent-name">'+a+'</div><div class="agent-metrics">'+
-      '<span class="agent-m calls">Calls: '+d.calls+'</span>'+
-      '<span class="agent-m conv">Conv: '+d.conv+'</span>'+
-      '<span class="agent-m wait">Wait: '+d.wait+'</span>'+
-      '<span class="agent-m notc">Not: '+d.notc+'</span>'+
-      '<span class="agent-m" style="background:#fff7ed;color:#c2410c">Miss: '+d.missed+'</span></div></div>';
+  perfDiv.innerHTML=agentData.map(ag=>{
+    const a=ag.name;
+    const d=agentMap[a]||{calls:0,conv:0,notc:0,wait:0,missed:0};
+    const isActive=ag.active!==false;
+    return'<div class="agent-card" style="'+(isActive?'':'opacity:0.5;border-color:#fca5a5')+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+        '<div class="agent-name">'+a+'</div>'+
+        '<div style="display:flex;align-items:center;gap:6px">'+
+          '<span class="'+(isActive?'active-badge':'leave-badge')+'">'+(isActive?'Active':'Leave')+'</span>'+
+          '<div class="toggle '+(isActive?'on':'')+'" onclick="toggleAgent(\''+ag.number+'\','+isActive+')"><div class="knob"></div></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="agent-metrics">'+
+        '<span class="agent-m calls">Calls: '+d.calls+'</span>'+
+        '<span class="agent-m conv">Conv: '+d.conv+'</span>'+
+        '<span class="agent-m wait">Wait: '+d.wait+'</span>'+
+        '<span class="agent-m notc">Not: '+d.notc+'</span>'+
+        '<span class="agent-m" style="background:#fff7ed;color:#c2410c">Miss: '+d.missed+'</span></div></div>';
   }).join("");
 }
 
@@ -341,20 +357,25 @@ function downloadExcel(){
   showNotify("📥 Excel downloaded!","ok");
 }
 
+let agentData=[]; // [{number,name,active}]
+
 async function fetchLogs(){
   try{
-    // Load agents from server (once, or if not loaded)
+    // Load agents from server every time (to get latest active/leave status)
+    try{
+      const ar=await fetch("/agents");
+      const serverAgents=await ar.json();
+      if(serverAgents&&serverAgents.length>0&&typeof serverAgents[0]==="object"){
+        agentData=serverAgents;
+        AGENTS=serverAgents.map(a=>a.name);
+      }else if(serverAgents&&serverAgents.length>0){
+        AGENTS=serverAgents;
+        agentData=serverAgents.map(a=>({number:"",name:a,active:true}));
+      }else{
+        AGENTS=AGENTS_DEFAULT;
+      }
+    }catch(e){AGENTS=AGENTS_DEFAULT}
     if(!agentsLoaded){
-      try{
-        const ar=await fetch("/agents");
-        const serverAgents=await ar.json();
-        if(serverAgents&&serverAgents.length>0){
-          AGENTS=serverAgents;
-        }else{
-          AGENTS=AGENTS_DEFAULT;
-        }
-      }catch(e){AGENTS=AGENTS_DEFAULT}
-      // Rebuild agent filter dropdown
       const sel=document.getElementById("filter-agent");
       sel.innerHTML='<option value="">All Agents</option>'+AGENTS.map(a=>'<option value="'+a+'">'+a+'</option>').join('');
       agentsLoaded=true;
@@ -367,6 +388,19 @@ async function fetchLogs(){
   }catch(e){
     document.getElementById("live-s").textContent="Offline";
   }
+}
+
+async function toggleAgent(number,currentActive){
+  try{
+    const res=await fetch("/agents/toggle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({number,active:!currentActive})});
+    const data=await res.json();
+    if(data.success){
+      agentData=data.agents;
+      AGENTS=data.agents.map(a=>a.name);
+      showNotify((currentActive?"🔴 ":"🟢 ")+agentData.find(a=>a.number===number)?.name+" "+(currentActive?"Leave":"Active"),"ok");
+      renderStats();
+    }
+  }catch(e){showNotify("Toggle failed","err")}
 }
 
 function showNotify(msg,type){
