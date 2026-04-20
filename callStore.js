@@ -1,50 +1,49 @@
-const fs = require("fs");
-const path = require("path");
+const { MongoClient } = require("mongodb");
 const logger = require("./logger");
 
 class CallStore {
   constructor() {
-    // In-memory storage (primary - works on Render free tier)
-    this.logs = [];
-    this.maxLogs = 1000; // Keep last 1000 records in memory
+    this.logs = []; // In-memory cache
+    this.db = null;
+    this.collection = null;
+    this.connected = false;
 
-    // Optional file backup (may not persist on Render free tier restarts)
-    this.filePath = path.join(__dirname, "data", "call-logs.json");
-    try {
-      const dir = path.dirname(this.filePath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      this.logs = this.loadLogs();
-    } catch {}
-
-    logger.info(`CallStore initialized with ${this.logs.length} existing records`);
-  }
-
-  loadLogs() {
-    try {
-      if (fs.existsSync(this.filePath)) {
-        const data = fs.readFileSync(this.filePath, "utf-8");
-        return JSON.parse(data);
-      }
-    } catch (err) {
-      logger.error("Failed to load call logs", { error: err.message });
+    const uri = process.env.MONGODB_URI;
+    if (uri) {
+      this.connectDB(uri);
+    } else {
+      logger.warn("MONGODB_URI not set — using in-memory only (data lost on restart)");
     }
-    return [];
+
+    logger.info("CallStore initialized");
   }
 
-  saveLogs() {
+  async connectDB(uri) {
     try {
-      fs.writeFileSync(this.filePath, JSON.stringify(this.logs, null, 2));
-    } catch {
-      // File write may fail on Render - that's OK, in-memory is primary
+      const client = new MongoClient(uri);
+      await client.connect();
+      this.db = client.db("wati_tatatele");
+      this.collection = this.db.collection("call_logs");
+      this.connected = true;
+
+      // Load existing data into memory cache
+      this.logs = await this.collection.find().sort({ id: -1 }).limit(1000).toArray();
+      this.logs.reverse();
+
+      logger.info(`MongoDB connected! Loaded ${this.logs.length} existing records`);
+    } catch (err) {
+      logger.error("MongoDB connection failed — using in-memory", { error: err.message });
+      this.connected = false;
     }
   }
 
   /**
    * Add a new call log entry
    */
-  addLog(entry) {
+  async addLog(entry) {
+    const lastId = this.logs.length > 0 ? this.logs[this.logs.length - 1].id || 0 : 0;
     const record = {
-      id: this.logs.length + 1,
+      id: lastId + 1,
       ...entry,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -52,12 +51,20 @@ class CallStore {
 
     this.logs.push(record);
 
-    // Trim old logs to prevent memory bloat
-    if (this.logs.length > this.maxLogs) {
-      this.logs = this.logs.slice(-this.maxLogs);
+    // Trim memory cache
+    if (this.logs.length > 2000) {
+      this.logs = this.logs.slice(-2000);
     }
 
-    this.saveLogs();
+    // Save to MongoDB
+    if (this.connected && this.collection) {
+      try {
+        await this.collection.insertOne({ ...record, _id: undefined });
+      } catch (err) {
+        logger.error("MongoDB insert failed", { error: err.message });
+      }
+    }
+
     logger.info("Call log added", { id: record.id, status: record.status });
     return record;
   }
@@ -65,7 +72,7 @@ class CallStore {
   /**
    * Update a call log by ID
    */
-  updateLog(id, updates) {
+  async updateLog(id, updates) {
     const index = this.logs.findIndex((l) => l.id === id);
     if (index === -1) return null;
 
@@ -75,7 +82,14 @@ class CallStore {
       updated_at: new Date().toISOString(),
     };
 
-    this.saveLogs();
+    if (this.connected && this.collection) {
+      try {
+        await this.collection.updateOne({ id }, { $set: updates });
+      } catch (err) {
+        logger.error("MongoDB update failed", { error: err.message });
+      }
+    }
+
     return this.logs[index];
   }
 
@@ -93,13 +107,14 @@ class CallStore {
     const total = this.logs.length;
     const success = this.logs.filter((l) => l.status === "SUCCESS").length;
     const failed = this.logs.filter((l) => l.status === "FAILED").length;
+    const missed = this.logs.filter((l) => l.status === "MISSED").length;
     const today = this.logs.filter((l) => {
       const d = new Date(l.created_at);
       const now = new Date();
       return d.toDateString() === now.toDateString();
     }).length;
 
-    return { total, success, failed, today };
+    return { total, success, failed, missed, today };
   }
 }
 
