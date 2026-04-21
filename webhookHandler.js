@@ -84,25 +84,46 @@ class WebhookHandler {
 
   /**
    * Check if the webhook payload contains any trigger button click
-   * Supports: "BOOK THIS PACKAGE", "CALL ME FOR ASSISTANCE", "DETAILS OF PACKAGE"
+   * ONLY triggers on button/interactive types — NOT normal text messages
    */
   isBookTestClick(payload) {
-    // Check multiple possible fields where button text might appear
-    const possibleTexts = [
-      payload?.text,
-      payload?.listReply?.title,
-      payload?.buttonReply?.text,
-      payload?.button?.text,
-      payload?.interactive?.button_reply?.title,
-      payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.button?.text,
-      payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.interactive?.button_reply?.title,
-      payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body,
-    ].filter(Boolean);
+    const msgType = (payload?.type || "").toLowerCase();
 
-    for (const text of possibleTexts) {
+    // Only process button clicks — ignore normal text messages
+    if (msgType === "text") {
+      // For "text" type, only check buttonReply (some WATI versions send button replies as text type with buttonReply)
+      if (!payload?.buttonReply?.text && !payload?.listReply?.title && !payload?.interactiveButtonReply) {
+        return false; // Normal text message — skip
+      }
+    }
+
+    // For button/interactive types, check button text fields
+    // For text type with buttonReply, check buttonReply only
+    const possibleTexts = [];
+
+    if (msgType === "button" || msgType === "interactive") {
+      possibleTexts.push(payload?.text);
+      possibleTexts.push(payload?.buttonReply?.text);
+      possibleTexts.push(payload?.button?.text);
+      possibleTexts.push(payload?.interactive?.button_reply?.title);
+    }
+
+    // Always check these button-specific fields regardless of type
+    possibleTexts.push(payload?.buttonReply?.text);
+    possibleTexts.push(payload?.listReply?.title);
+    possibleTexts.push(payload?.interactive?.button_reply?.title);
+    possibleTexts.push(payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.button?.text);
+    possibleTexts.push(payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.interactive?.button_reply?.title);
+
+    const filtered = [...new Set(possibleTexts.filter(Boolean))];
+
+    if (filtered.length === 0) return false;
+
+    for (const text of filtered) {
       const lowerText = String(text).toLowerCase();
       for (const trigger of this.triggerTexts) {
-        if (lowerText.includes(trigger)) {
+        // Exact match or very close match — not substring of long messages
+        if (lowerText === trigger || lowerText.trim() === trigger) {
           logger.info(`Button text matched: "${text}" (trigger: "${trigger}")`);
           return true;
         }
