@@ -274,35 +274,60 @@ app.post("/agents/toggle", (req, res) => {
 });
 
 app.get("/logs", (req, res) => {
-  const limit = parseInt(req.query.limit || "50", 10);
+  const limit = parseInt(req.query.limit || "500", 10);
   const logs = callStore.getRecentLogs(limit);
   res.json(logs);
+});
+
+// Update a log entry (remark, callDone, source, campaign, agent_name, convert)
+app.post("/logs/update", (req, res) => {
+  const { id, field, value } = req.body;
+  if (!id || !field) return res.status(400).json({ error: "id and field required" });
+  const allowed = ["remark","callDone","source","campaign","agent_name","convert","callStatus"];
+  if (!allowed.includes(field)) return res.status(400).json({ error: "invalid field" });
+  const update = {};
+  update[field] = value;
+  const result = callStore.updateLog(id, update);
+  if (result) {
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: "Log not found" });
+  }
 });
 
 // ═══════════════════════════════════════════
 // ROUTE 5: Manual Call Trigger (for testing & redial from dashboard)
 // ═══════════════════════════════════════════
 app.post("/test-call", async (req, res) => {
-  const { patient_number } = req.body;
+  const { patient_number, agent_number: reqAgent } = req.body;
 
   if (!patient_number) {
     return res.status(400).json({ error: "patient_number required" });
   }
 
-  const agentNumber = agentManager.getNextAgent();
+  // Use specific agent if provided, otherwise round-robin
+  const agentNumber = reqAgent || agentManager.getNextAgent();
+  const agentName = agentManager.getAgentName(agentNumber);
   const result = await callService.initiateCall(agentNumber, patient_number);
+
+  const tataMsg = result.data?.message || result.error?.message || "";
+  const isMissed = tataMsg.toLowerCase().includes("missed");
+  let callStatus = "FAILED";
+  if (result.success && !isMissed) callStatus = "SUCCESS";
+  else if (isMissed) callStatus = "MISSED";
 
   callStore.addLog({
     patient_number,
     agent_number: agentNumber,
-    button_clicked: "Manual Redial",
+    agent_name: agentName,
+    button_clicked: "Redial",
     contact_name: req.body.contact_name || "",
-    status: result.success ? "SUCCESS" : "FAILED",
+    status: callStatus,
     source: "manual_redial",
     tata_response: result.data || result.error,
   });
 
-  res.json(result);
+  res.json({ ...result, agentName, callStatus });
 });
 
 // ── 404 handler ──
