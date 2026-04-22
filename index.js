@@ -318,8 +318,13 @@ app.use((err, _req, res, _next) => {
 
 // ── Start server ──
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  logger.info(`
+
+// Wait for MongoDB connection before starting
+async function startServer() {
+  await callStore.waitForConnection();
+  
+  app.listen(PORT, () => {
+    logger.info(`
   ╔══════════════════════════════════════════╗
   ║   WATI + Tata Tele Bridge Server         ║
   ║   Running on port ${PORT}                    ║
@@ -334,6 +339,10 @@ app.listen(PORT, () => {
   ║   Status:  POST /call-status             ║
   ╚══════════════════════════════════════════╝
   `);
-});
+  });
+}
 
-module.exports = app;
+startServer().catch(err => {
+  logger.error("Failed to start server", { error: err.message });
+  process.exit(1);
+});
