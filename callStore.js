@@ -3,47 +3,59 @@ const logger = require("./logger");
 
 class CallStore {
   constructor() {
-    this.logs = []; // In-memory cache
+    this.logs = [];
     this.db = null;
     this.collection = null;
     this.connected = false;
+    this.connectPromise = null;
+    this.nextId = 1;
 
     const uri = process.env.MONGODB_URI;
     if (uri) {
-      this.connectDB(uri);
+      this.connectPromise = this.connectDB(uri);
     } else {
       logger.warn("MONGODB_URI not set — using in-memory only (data lost on restart)");
     }
-
-    logger.info("CallStore initialized");
   }
 
   async connectDB(uri) {
     try {
-      const client = new MongoClient(uri);
+      const client = new MongoClient(uri, {
+        connectTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 10000,
+      });
       await client.connect();
       this.db = client.db("wati_tatatele");
       this.collection = this.db.collection("call_logs");
       this.connected = true;
 
       // Load existing data into memory cache
-      this.logs = await this.collection.find().sort({ id: -1 }).limit(1000).toArray();
-      this.logs.reverse();
+      const existing = await this.collection.find().sort({ id: 1 }).limit(2000).toArray();
+      this.logs = existing;
+      
+      // Set next ID
+      if (this.logs.length > 0) {
+        const maxId = Math.max(...this.logs.map(l => l.id || 0));
+        this.nextId = maxId + 1;
+      }
 
-      logger.info(`MongoDB connected! Loaded ${this.logs.length} existing records`);
+      logger.info(`MongoDB connected! Loaded ${this.logs.length} existing records (nextId: ${this.nextId})`);
     } catch (err) {
       logger.error("MongoDB connection failed — using in-memory", { error: err.message });
       this.connected = false;
     }
   }
 
-  /**
-   * Add a new call log entry
-   */
-  async addLog(entry) {
-    const lastId = this.logs.length > 0 ? this.logs[this.logs.length - 1].id || 0 : 0;
+  async waitForConnection() {
+    if (this.connectPromise) {
+      await this.connectPromise;
+      this.connectPromise = null;
+    }
+  }
+
+  addLog(entry) {
     const record = {
-      id: lastId + 1,
+      id: this.nextId++,
       ...entry,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -56,23 +68,20 @@ class CallStore {
       this.logs = this.logs.slice(-2000);
     }
 
-    // Save to MongoDB
+    // Save to MongoDB in background (don't block)
     if (this.connected && this.collection) {
-      try {
-        await this.collection.insertOne({ ...record, _id: undefined });
-      } catch (err) {
+      const doc = { ...record };
+      delete doc._id; // Remove _id to let MongoDB auto-generate
+      this.collection.insertOne(doc).catch(err => {
         logger.error("MongoDB insert failed", { error: err.message });
-      }
+      });
     }
 
     logger.info("Call log added", { id: record.id, status: record.status });
     return record;
   }
 
-  /**
-   * Update a call log by ID
-   */
-  async updateLog(id, updates) {
+  updateLog(id, updates) {
     const index = this.logs.findIndex((l) => l.id === id);
     if (index === -1) return null;
 
@@ -83,26 +92,18 @@ class CallStore {
     };
 
     if (this.connected && this.collection) {
-      try {
-        await this.collection.updateOne({ id }, { $set: updates });
-      } catch (err) {
+      this.collection.updateOne({ id }, { $set: updates }).catch(err => {
         logger.error("MongoDB update failed", { error: err.message });
-      }
+      });
     }
 
     return this.logs[index];
   }
 
-  /**
-   * Get recent logs
-   */
   getRecentLogs(limit = 50) {
     return this.logs.slice(-limit).reverse();
   }
 
-  /**
-   * Get stats
-   */
   getStats() {
     const total = this.logs.length;
     const success = this.logs.filter((l) => l.status === "SUCCESS").length;
