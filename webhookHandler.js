@@ -5,7 +5,7 @@ class WebhookHandler {
   constructor() {
     // Support multiple trigger buttons (pipe-separated in env)
     this.triggerTexts = (process.env.TRIGGER_BUTTON_TEXT || "Book Test")
-      .split("|") // <-- YAHAN CHANGE KIYA HAI (Comma se Pipe)
+      .split("|") // <-- Comma se Pipe change kiya hua hai
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean);
     this.webhookSecret = process.env.WATI_WEBHOOK_SECRET || "";
@@ -83,38 +83,22 @@ class WebhookHandler {
   }
 
   /**
-   * Check if the webhook payload contains any trigger button click
-   * ONLY triggers on button/interactive types — NOT normal text messages
+   * Check if the webhook payload contains any trigger button click OR exact text match
    */
   isBookTestClick(payload) {
-    const msgType = (payload?.type || "").toLowerCase();
-
-    // Only process button clicks — ignore normal text messages
-    if (msgType === "text") {
-      // For "text" type, only check buttonReply (some WATI versions send button replies as text type with buttonReply)
-      if (!payload?.buttonReply?.text && !payload?.listReply?.title && !payload?.interactiveButtonReply) {
-        return false; // Normal text message — skip
-      }
-    }
-
-    // For button/interactive types, check button text fields
-    // For text type with buttonReply, check buttonReply only
     const possibleTexts = [];
 
-    if (msgType === "button" || msgType === "interactive") {
-      possibleTexts.push(payload?.text);
-      possibleTexts.push(payload?.buttonReply?.text);
-      possibleTexts.push(payload?.button?.text);
-      possibleTexts.push(payload?.interactive?.button_reply?.title);
-    }
-
-    // Always check these button-specific fields regardless of type
+    // YAHAN CHANGE KIYA HAI: Ab ye strict "msgType === text" wali rukawat nahi check karega.
+    // Ye har jagah se text nikalega, chahe wo normal text ho ya button.
+    possibleTexts.push(payload?.text);
     possibleTexts.push(payload?.buttonReply?.text);
+    possibleTexts.push(payload?.button?.text);
     possibleTexts.push(payload?.listReply?.title);
     possibleTexts.push(payload?.interactive?.button_reply?.title);
     possibleTexts.push(payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.button?.text);
     possibleTexts.push(payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.interactive?.button_reply?.title);
 
+    // Null ya undefined hata do aur duplicate hata do
     const filtered = [...new Set(possibleTexts.filter(Boolean))];
 
     if (filtered.length === 0) return false;
@@ -122,9 +106,9 @@ class WebhookHandler {
     for (const text of filtered) {
       const lowerText = String(text).toLowerCase();
       for (const trigger of this.triggerTexts) {
-        // Exact match or very close match — not substring of long messages
+        // Exact match check karega (spam rokne ke liye)
         if (lowerText === trigger || lowerText.trim() === trigger) {
-          logger.info(`Button text matched: "${text}" (trigger: "${trigger}")`);
+          logger.info(`Match Found: "${text}" (trigger: "${trigger}")`);
           return true;
         }
       }
