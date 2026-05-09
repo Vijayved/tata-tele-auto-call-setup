@@ -3,9 +3,9 @@ const logger = require("./logger");
 
 class WebhookHandler {
   constructor() {
-    // Support multiple trigger buttons (comma-separated in env)
+    // Support multiple trigger buttons (pipe-separated in env)
     this.triggerTexts = (process.env.TRIGGER_BUTTON_TEXT || "Book Test")
-      .split(",")
+      .split("|") // <-- YAHAN CHANGE KIYA HAI (Comma se Pipe)
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean);
     this.webhookSecret = process.env.WATI_WEBHOOK_SECRET || "";
