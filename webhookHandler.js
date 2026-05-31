@@ -12,9 +12,9 @@ class WebhookHandler {
     this.debounceSeconds = parseInt(process.env.DEBOUNCE_SECONDS || "60", 10);
 
     // Business hours config (IST)
-    this.businessHoursStart = parseInt(process.env.BUSINESS_HOURS_START || "9", 10);
-    this.businessHoursEnd = parseInt(process.env.BUSINESS_HOURS_END || "19", 10);
-    this.businessDays = (process.env.BUSINESS_DAYS || "1,2,3,4,5,6")
+    this.businessHoursStart = parseInt(process.env.BUSINESS_HOURS_START || "0", 10);
+    this.businessHoursEnd = parseInt(process.env.BUSINESS_HOURS_END || "24", 10);
+    this.businessDays = (process.env.BUSINESS_DAYS || "0,1,2,3,4,5,6")
       .split(",")
       .map((d) => parseInt(d.trim(), 10));
 
