@@ -23,11 +23,11 @@ services:
       - key: TRIGGER_BUTTON_TEXT
         value: Book Test
       - key: BUSINESS_HOURS_START
-        value: 9
+        value: 0
       - key: BUSINESS_HOURS_END
-        value: 19
+        value: 24
       - key: BUSINESS_DAYS
-        value: 1,2,3,4,5,6
+        value: 0,1,2,3,4,5,6
       - key: DEBOUNCE_SECONDS
         value: 60
       - key: MAX_RETRIES
